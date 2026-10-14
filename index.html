@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Cinematic Studio</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg:#e8eaed; --panel:#f8f9fa; --panel-2:#eef0f2; --ink:#171a1d; --muted:#606870;
+      --line:#c7cbd0; --line-strong:#9ca3aa; --accent:#c94c22; --accent-2:#0f7887; --accent-soft:#f6d9cf;
+      --stage:#1f2428; --stage-line:#4a535b; --stage-ink:#f4f5f5; --clip:#d7e8e9; --clip-ink:#175a64;
+      --danger:#a83229; --shadow:0 12px 32px rgba(14,18,21,.14); --radius:10px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:#111416; --panel:#1c2023; --panel-2:#252a2e; --ink:#f3f4f4; --muted:#a9b0b5;
+        --line:#363c41; --line-strong:#586168; --accent:#ff7849; --accent-2:#5bc1ce; --accent-soft:#45291f;
+        --stage:#0b0d0f; --stage-line:#30383e; --stage-ink:#f4f5f5; --clip:#17383d; --clip-ink:#83dce5;
+        --danger:#ff7c72; --shadow:0 16px 40px rgba(0,0,0,.32);
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",sans-serif}
+    body{min-height:100vh;overflow-x:hidden}
+    button,input,select{font:inherit;color:inherit}
+    button{cursor:pointer}
+    button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid color-mix(in srgb,var(--accent-2) 55%,transparent);outline-offset:2px}
+    .app{min-height:100vh;display:grid;grid-template-rows:auto minmax(0,1fr);gap:1px;background:var(--line)}
+    .topbar{background:var(--panel);display:flex;align-items:center;gap:10px;padding:9px 12px;min-width:0}
+    .sequence-name{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:auto}
+    .status{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);padding:5px 7px;background:var(--panel-2);border-radius:5px}
+    .toolbtn,.primary,.iconbtn,.seg button{border:1px solid var(--line);background:var(--panel);min-height:38px;border-radius:7px;padding:0 12px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px}
+    .toolbtn:hover,.iconbtn:hover,.seg button:hover{background:var(--panel-2);border-color:var(--line-strong)}
+    .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .primary:hover{filter:brightness(1.07)}
+    .iconbtn{width:38px;padding:0}
+    svg{width:18px;height:18px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .workspace{display:grid;grid-template-columns:220px minmax(440px,1fr) 260px;min-height:0;gap:1px;background:var(--line)}
+    .sidebar,.inspector,.center{background:var(--panel);min-width:0;min-height:0}
+    .sidebar,.inspector{overflow:auto}
+    .panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 12px 8px}
+    .panel-head h2,.inspector h2{font-size:12px;letter-spacing:.07em;text-transform:uppercase;margin:0;color:var(--muted)}
+    .add-btn{width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);font-size:20px;line-height:1}
+    .scene-list{list-style:none;margin:0;padding:0 8px 14px}
+    .scene-list li{margin:2px 0}
+    .scene-item{width:100%;text-align:left;border:0;background:transparent;border-radius:7px;padding:9px 8px;display:flex;align-items:center;gap:8px;color:var(--ink)}
+    .scene-item:hover{background:var(--panel-2)}
+    .scene-item.active{background:var(--accent-soft);color:var(--accent)}
+    .scene-item .type{width:20px;color:var(--muted);font-family:"IBM Plex Mono",monospace;font-size:11px}
+    .scene-item .label{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px;font-weight:600}
+    .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-2);margin-left:auto;flex:0 0 auto}
+    .subgroup{border-top:1px solid var(--line);padding:9px 8px 0;margin-top:6px}
+    .subgroup-title{padding:5px 8px;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+    .center{display:grid;grid-template-rows:minmax(300px,1fr) auto;overflow:hidden;background:var(--stage)}
+    .viewport{position:relative;min-height:330px;overflow:hidden;background:var(--stage);touch-action:none}
+    #stage{width:100%;height:100%;display:block}
+    .viewbar{position:absolute;top:10px;left:10px;right:10px;display:flex;align-items:center;gap:7px;pointer-events:none}
+    .viewbar>*{pointer-events:auto}
+    .view-pill{border:1px solid rgba(255,255,255,.2);background:rgba(15,18,20,.78);color:#fff;border-radius:6px;padding:6px 9px;font-size:11px;font-weight:600;backdrop-filter:blur(6px)}
+    .viewbar .spacer{flex:1}
+    .canvas-btn{border:1px solid rgba(255,255,255,.2);background:rgba(15,18,20,.78);color:#fff;width:34px;height:32px;border-radius:6px;display:grid;place-items:center;padding:0}
+    .safe-frame{position:absolute;inset:11% 9%;border:1px dashed rgba(255,255,255,.28);pointer-events:none;border-radius:2px}
+    .safe-frame:after{content:"SAFE FRAME";position:absolute;right:6px;bottom:5px;color:rgba(255,255,255,.48);font:500 9px "IBM Plex Mono",monospace}
+    .hud{position:absolute;left:12px;bottom:12px;background:rgba(8,10,11,.78);color:white;border:1px solid rgba(255,255,255,.16);border-radius:7px;padding:8px 10px;backdrop-filter:blur(5px);pointer-events:none}
+    .hud strong{font-size:12px}.hud div{font:500 10px "IBM Plex Mono",monospace;color:#c9d0d4;margin-top:2px}
+    .timeline{background:var(--panel);border-top:1px solid var(--line);min-height:250px;display:grid;grid-template-rows:auto auto minmax(0,1fr)}
+    .transport{display:flex;align-items:center;gap:7px;padding:9px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+    .play{width:42px;background:var(--ink);color:var(--panel);border-color:var(--ink)}
+    .timecode{font:600 12px "IBM Plex Mono",monospace;min-width:92px;text-align:center}
+    .transport .spacer{flex:1}
+    .toggle{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted)}
+    .toggle input{appearance:none;width:32px;height:18px;border-radius:12px;background:var(--line-strong);position:relative;margin:0}
+    .toggle input:after{content:"";position:absolute;width:12px;height:12px;left:3px;top:3px;background:white;border-radius:50%;transition:transform .16s}
+    .toggle input:checked{background:var(--accent-2)}.toggle input:checked:after{transform:translateX(14px)}
+    .ruler{display:grid;grid-template-columns:112px minmax(0,1fr);min-height:28px;border-bottom:1px solid var(--line)}
+    .ruler-label{padding:7px 10px;font:500 10px "IBM Plex Mono",monospace;color:var(--muted);border-right:1px solid var(--line)}
+    .ticks{display:grid;grid-template-columns:repeat(7,1fr);position:relative;font:500 9px "IBM Plex Mono",monospace;color:var(--muted);padding-top:6px}
+    .ticks span{border-left:1px solid var(--line);padding-left:4px}
+    .tracks{position:relative}
+    .playhead{position:absolute;left:112px;top:0;bottom:0;width:2px;background:var(--accent);z-index:4;pointer-events:none;transform:translateX(0)}
+    .playhead:before{content:"";position:absolute;width:10px;height:8px;background:var(--accent);top:0;left:-4px;clip-path:polygon(0 0,100% 0,50% 100%)}
+    .track{display:grid;grid-template-columns:112px minmax(0,1fr);min-height:47px;border-bottom:1px solid var(--line)}
+    .track-name{padding:8px 10px;border-right:1px solid var(--line);font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+    .track-name small{display:block;color:var(--muted);font:500 9px "IBM Plex Mono",monospace;margin-top:2px}
+    .track-lane{position:relative;background-image:linear-gradient(to right,var(--line) 1px,transparent 1px);background-size:calc(100% / 6) 100%;cursor:crosshair;min-width:0}
+    .clip{position:absolute;top:7px;height:32px;border:1px solid color-mix(in srgb,var(--accent-2) 45%,var(--line));background:var(--clip);color:var(--clip-ink);border-radius:5px;padding:0 7px;font-size:10px;font-weight:700;display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .clip.selected{background:var(--accent-2);border-color:var(--accent-2);color:#fff}
+    .key{position:absolute;top:18px;width:11px;height:11px;background:var(--accent);border:2px solid var(--panel);transform:translate(-50%,-50%) rotate(45deg);box-shadow:0 0 0 1px var(--accent)}
+    .inspector{padding-bottom:20px}
+    .inspect-head{padding:13px 14px 11px;border-bottom:1px solid var(--line)}
+    .inspect-head .selected-name{font-size:17px;font-weight:700;margin-top:5px}
+    .inspect-head .selected-meta{font:500 10px "IBM Plex Mono",monospace;color:var(--muted);margin-top:3px}
+    .section{padding:13px 14px;border-bottom:1px solid var(--line)}
+    .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:11px}
+    .field{margin:0 0 12px}.field:last-child{margin-bottom:0}
+    .field label,.field-row label{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;margin-bottom:6px}
+    .xyz{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:10px}
+    .axis-field{min-width:0}.axis-field label{display:block;font:600 10px "IBM Plex Mono",monospace;margin-bottom:4px}.axis-field input{min-width:0;padding:0 6px;text-align:right;font-family:"IBM Plex Mono",monospace;font-size:11px}
+    .axis-x label{color:#d95745}.axis-y label{color:#378b5c}.axis-z label{color:#3678ba}
+    .value{color:var(--accent-2);font-family:"IBM Plex Mono",monospace;font-size:10px}
+    select,input[type="text"],input[type="number"]{width:100%;border:1px solid var(--line);background:var(--panel-2);border-radius:6px;min-height:38px;padding:0 9px}
+    input[type="range"]{width:100%;accent-color:var(--accent)}
+    .seg{display:grid;grid-template-columns:repeat(3,1fr)}
+    .seg button{border-radius:0;padding:0 6px;font-size:11px;min-height:34px}
+    .seg button:first-child{border-radius:6px 0 0 6px}.seg button:last-child{border-radius:0 6px 6px 0}.seg button+button{border-left:0}
+    .seg button.active{background:var(--accent-2);border-color:var(--accent-2);color:white}
+    .wide{width:100%}
+    .tip{font-size:11px;line-height:1.45;color:var(--muted);margin:9px 0 0}
+    .modal-wrap{position:fixed;inset:0;background:rgba(5,7,8,.7);display:none;place-items:center;padding:18px;z-index:20;opacity:0;pointer-events:none;transition:opacity .15s}
+    .modal-wrap.open{display:grid;opacity:1;pointer-events:auto}
+    .modal{width:min(480px,100%);background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:18px}
+    .modal h2{margin:0 0 5px;font-size:22px}.modal p{margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.5}
+    .pathbox{display:flex;gap:7px;background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:8px;margin-bottom:14px;align-items:center}
+    .pathbox code{min-width:0;overflow-wrap:anywhere;font:600 11px "IBM Plex Mono",monospace;flex:1}
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .toast{position:fixed;left:50%;bottom:18px;transform:translate(-50%,15px);background:var(--ink);color:var(--panel);padding:10px 13px;border-radius:7px;font-size:12px;font-weight:600;opacity:0;pointer-events:none;transition:.18s;z-index:30;box-shadow:var(--shadow)}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .mobile-tabs{display:none}
+    .file-input{display:none}
+    @media(max-width:920px){
+      .workspace{grid-template-columns:170px minmax(390px,1fr)}.inspector{display:none}.center{grid-column:2}.sidebar{grid-row:1}
+      .inspector.mobile-open{display:block;position:fixed;inset:58px 0 0 auto;width:min(320px,90vw);z-index:12;box-shadow:var(--shadow)}
+    }
+    @media(max-width:650px){
+      .app{display:block}.topbar{position:sticky;top:0;z-index:15;border-bottom:1px solid var(--line);padding:8px}.status{display:none}.toolbtn span{display:none}.toolbtn{width:40px;padding:0}
+      .workspace{display:flex;flex-direction:column;background:var(--panel)}
+      .sidebar{display:none}.center{order:1;display:block}.viewport{height:47vh;min-height:310px}.timeline{min-height:0}.inspector{display:block;order:2;overflow:visible}
+      .mobile-tabs{display:grid;grid-template-columns:repeat(2,1fr);background:var(--panel);border-top:1px solid var(--line);position:sticky;bottom:0;z-index:10;padding:7px;gap:7px}
+      .mobile-tabs button{min-height:44px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-weight:700}.mobile-tabs button.active{background:var(--accent);border-color:var(--accent);color:white}
+      body[data-mobile-panel="timeline"] .inspector{display:none}
+      body[data-mobile-panel="inspect"] .timeline{display:none}
+      .track,.ruler{grid-template-columns:84px minmax(0,1fr)}.playhead{left:84px}.track-name,.ruler-label{padding-left:7px}.clip{font-size:8px;padding:0 3px}
+      .transport{padding:8px}.transport .spacer{display:none}.toggle{margin-left:auto}.safe-frame{inset:9% 6%}
+    }
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.modal-wrap,.toast,.toggle input:after{transition:none}}
+  </style>
+</head>
+<body data-mobile-panel="timeline">
+<div class="app">
+  <header class="topbar">
+    <button class="iconbtn" id="undoBtn" aria-label="Undo last keyframe" title="Undo last keyframe">
+      <svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></svg>
+    </button>
+    <div class="sequence-name">Mayor Mayor intro</div>
+    <span class="status">30 FPS · 6.0 SEC</span>
+    <label class="toolbtn" for="importFile" title="Import sequence">
+      <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>Import</span>
+    </label>
+    <input class="file-input" id="importFile" type="file" accept=".json,application/json">
+    <button class="primary" id="exportBtn">
+      <svg viewBox="0 0 24 24"><path d="M12 15V3m0 0 4 4m-4-4L8 7"/><path d="M5 13v6h14v-6"/></svg>Export
+    </button>
+  </header>
+
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Sequence outline">
+      <div class="panel-head"><h2>Sequence</h2><button class="add-btn" id="addKeySide" aria-label="Add keyframe">+</button></div>
+      <ul class="scene-list">
+        <li><button class="scene-item active" data-select="overview"><span class="type">SEQ</span><span class="label">Mayor Mayor intro</span><span class="dot"></span></button></li>
+        <li class="subgroup">
+          <div class="subgroup-title">Actors</div>
+          <button class="scene-item" data-select="mayor"><span class="type">A1</span><span class="label">Mayor Mayor</span></button>
+        </li>
+        <li class="subgroup">
+          <div class="subgroup-title">Stage</div>
+          <button class="scene-item" data-select="camera"><span class="type">CAM</span><span class="label">Director camera</span></button>
+          <button class="scene-item" data-select="light"><span class="type">LGT</span><span class="label">Warm key light</span></button>
+          <button class="scene-item" data-select="set"><span class="type">SET</span><span class="label">Cyclical City gate</span></button>
+        </li>
+        <li class="subgroup">
+          <div class="subgroup-title">Beats</div>
+          <button class="scene-item" data-time="0.2"><span class="type">01</span><span class="label">Walk in</span></button>
+          <button class="scene-item" data-time="1.55"><span class="type">02</span><span class="label">Plant feet</span></button>
+          <button class="scene-item" data-time="2.35"><span class="type">03</span><span class="label">Tip hat</span></button>
+          <button class="scene-item" data-time="3.25"><span class="type">04</span><span class="label">Wave</span></button>
+          <button class="scene-item" data-time="4.5"><span class="type">05</span><span class="label">Hop</span></button>
+        </li>
+      </ul>
+    </aside>
+
+    <main class="center">
+      <section class="viewport" id="viewport" aria-label="3D stage preview">
+        <canvas id="stage"></canvas>
+        <div class="viewbar">
+          <span class="view-pill">GAME CAMERA</span>
+          <span class="view-pill" id="shotPill">Wide arrival</span>
+          <span class="spacer"></span>
+          <button class="canvas-btn" id="frameBtn" aria-label="Frame actor" title="Frame actor">
+            <svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+          </button>
+        </div>
+        <div class="safe-frame"></div>
+        <div class="hud"><strong id="beatLabel">Walk in</strong><div id="cameraHud">35 MM · WIDE</div></div>
+      </section>
+
+      <section class="timeline" aria-label="Timeline editor">
+        <div class="transport">
+          <button class="iconbtn" id="rewindBtn" aria-label="Go to start"><svg viewBox="0 0 24 24"><path d="m11 6-7 6 7 6zM20 6l-7 6 7 6z"/></svg></button>
+          <button class="iconbtn play" id="playBtn" aria-label="Play sequence"><svg id="playIcon" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></svg></button>
+          <div class="timecode" id="timecode">00:00:00</div>
+          <button class="toolbtn" id="addKeyBtn"><svg viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg><span>Add key</span></button>
+          <span class="spacer"></span>
+          <label class="toggle"><input id="snapToggle" type="checkbox" checked> Snap</label>
+          <label class="toggle"><input id="loopToggle" type="checkbox" checked> Loop</label>
+        </div>
+        <div class="ruler"><div class="ruler-label">TRACKS</div><div class="ticks"><span>0s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s</span><span>6s</span></div></div>
+        <div class="tracks" id="tracks">
+          <div class="playhead" id="playhead"></div>
+          <div class="track">
+            <div class="track-name"><span>A1</span><div>Mayor Mayor<small>POSE</small></div></div>
+            <div class="track-lane" data-track="actor">
+              <button class="clip selected" style="left:0%;width:23.33%" data-time="0.2">Walk in</button>
+              <button class="clip" style="left:23.33%;width:13.34%" data-time="1.55">Plant</button>
+              <button class="clip" style="left:36.67%;width:15%" data-time="2.35">Hat tip</button>
+              <button class="clip" style="left:51.67%;width:21.66%" data-time="3.25">Wave</button>
+              <button class="clip" style="left:73.33%;width:13.34%" data-time="4.5">Hop</button>
+              <button class="clip" style="left:86.67%;width:13.33%" data-time="5.4">Hold</button>
+            </div>
+          </div>
+          <div class="track">
+            <div class="track-name"><span>CAM</span><div>Director camera<small>TRANSFORM</small></div></div>
+            <div class="track-lane" data-track="camera"><span class="key" style="left:0%"></span><span class="key" style="left:38%"></span><span class="key" style="left:73%"></span></div>
+          </div>
+          <div class="track">
+            <div class="track-name"><span>LGT</span><div>Warm key<small>INTENSITY</small></div></div>
+            <div class="track-lane" data-track="light"><span class="key" style="left:0%"></span><span class="key" style="left:52%"></span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="inspector" aria-label="Inspector">
+      <div class="inspect-head"><h2>Inspector</h2><div class="selected-name" id="selectedName">Director camera</div><div class="selected-meta" id="selectedMeta">SHOT 01 · 00:00:00</div></div>
+      <div class="section">
+        <div class="section-title">Shot</div>
+        <div class="field"><label for="shotName">Name</label><input id="shotName" type="text" value="Wide arrival" aria-label="Shot name"></div>
+        <div class="field"><label for="lens">Lens <span class="value" id="lensValue">35 mm</span></label><input id="lens" type="range" min="18" max="85" value="35"></div>
+        <div class="field"><label>Framing</label><div class="seg" id="framingSeg"><button data-frame="wide" class="active">Wide</button><button data-frame="medium">Medium</button><button data-frame="close">Close</button></div></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Actor</div>
+        <div class="field"><label for="poseSelect">Pose</label><select id="poseSelect"><option>Walk in</option><option>Plant feet</option><option>Tip hat</option><option>Wave</option><option>Hop</option><option>Hold</option></select></div>
+        <button class="toolbtn wide" id="actorKeyBtn"><svg viewBox="0 0 24 24"><path d="m12 3 4 4-4 4-4-4zM5 17h14M12 11v6"/></svg>Key actor pose</button>
+      </div>
+      <div class="section">
+        <div class="section-title">3D transform · meters</div>
+        <div class="field"><label>Position</label><div class="xyz">
+          <div class="axis-field axis-x"><label for="posX">X</label><input id="posX" type="number" step="0.1" value="0.0"></div>
+          <div class="axis-field axis-y"><label for="posY">Y</label><input id="posY" type="number" step="0.1" value="1.6"></div>
+          <div class="axis-field axis-z"><label for="posZ">Z</label><input id="posZ" type="number" step="0.1" value="6.5"></div>
+        </div></div>
+        <div class="field"><label>Rotation · degrees</label><div class="xyz">
+          <div class="axis-field axis-x"><label for="rotX">X</label><input id="rotX" type="number" step="1" value="-8"></div>
+          <div class="axis-field axis-y"><label for="rotY">Y</label><input id="rotY" type="number" step="1" value="0"></div>
+          <div class="axis-field axis-z"><label for="rotZ">Z</label><input id="rotZ" type="number" step="1" value="0"></div>
+        </div></div>
+        <button class="toolbtn wide" id="transformKeyBtn"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><path d="m12 3 3 3m-3-3L9 6M21 12l-3-3m3 3-3 3"/></svg>Key 3D transform</button>
+      </div>
+      <div class="section">
+        <div class="section-title">Motion path</div>
+        <div class="field"><label for="pathSelect">Interpolation</label><select id="pathSelect"><option>Bezier · smooth</option><option>Linear</option><option>Step</option></select></div>
+        <div class="field"><label for="easeSelect">Easing</label><select id="easeSelect"><option>Smooth in / out</option><option>Ease in</option><option>Ease out</option><option>Linear</option></select></div>
+        <div class="field"><label for="durationRange">Blend <span class="value" id="blendValue">0.30 s</span></label><input id="durationRange" type="range" min="0" max="100" value="30"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Playback</div>
+        <label class="toggle"><input id="lockInput" type="checkbox" checked> Lock player input</label>
+        <p class="tip">The sequence returns control when the final beat ends.</p>
+      </div>
+    </aside>
+  </div>
+  <nav class="mobile-tabs" aria-label="Editor panel">
+    <button class="active" data-panel="timeline">Timeline</button><button data-panel="inspect">Inspector</button>
+  </nav>
+</div>
+
+<div class="modal-wrap" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+  <div class="modal">
+    <h2 id="exportTitle">Game-ready sequence</h2>
+    <p>Exports the camera, actor poses, timing, lighting, and input lock as one sequence file.</p>
+    <div class="pathbox"><code id="exportPath">assets/cinematics/mayor-mayor-intro.sequence.json</code><button class="iconbtn" id="copyPathBtn" aria-label="Copy destination path"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div>
+    <div class="modal-actions"><button class="toolbtn" id="closeModal">Cancel</button><button class="primary" id="downloadBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>Download JSON</button></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  'use strict';
+  var DURATION=6, FPS=30, time=0, playing=false, last=0, orbit=-0.13, zoom=1, selectedTrack='actor';
+  var history=[];
+  var beats=[
+    {start:0,end:1.4,name:'Walk in',pose:'walk'},
+    {start:1.4,end:2.2,name:'Plant feet',pose:'plant'},
+    {start:2.2,end:3.1,name:'Tip hat',pose:'hat'},
+    {start:3.1,end:4.4,name:'Wave',pose:'wave'},
+    {start:4.4,end:5.2,name:'Hop',pose:'hop'},
+    {start:5.2,end:6,name:'Hold',pose:'hold'}
+  ];
+  var cameraKeys=[{time:0,lens:35,frame:'wide'},{time:2.28,lens:52,frame:'medium'},{time:4.38,lens:42,frame:'medium'}];
+  var lightKeys=[{time:0,intensity:1.1},{time:3.1,intensity:1.3}];
+  var customKeys=[];
+  var canvas=document.getElementById('stage'), ctx=canvas.getContext('2d'), viewport=document.getElementById('viewport');
+  var playhead=document.getElementById('playhead'), timecode=document.getElementById('timecode'), playBtn=document.getElementById('playBtn');
+  var playIcon=document.getElementById('playIcon'), toast=document.getElementById('toast');
+
+  function resize(){
+    var r=viewport.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.max(1,Math.round(r.width*d)); canvas.height=Math.max(1,Math.round(r.height*d));
+    canvas.style.width=r.width+'px'; canvas.style.height=r.height+'px'; ctx.setTransform(d,0,0,d,0,0); draw();
+  }
+  function project(x,y,z){
+    var w=viewport.clientWidth,h=viewport.clientHeight;
+    var co=Math.cos(orbit),si=Math.sin(orbit), xr=x*co-z*si, zr=x*si+z*co;
+    var s=(390*zoom)/(zr+780);
+    return {x:w/2+xr*s,y:h*.68-y*s+zr*.10*s,s:s};
+  }
+  function poly(points,fill,stroke){
+    ctx.beginPath();points.forEach(function(p,i){var q=project(p[0],p[1],p[2]);if(i)ctx.lineTo(q.x,q.y);else ctx.moveTo(q.x,q.y)});ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.stroke()}
+  }
+  function line3(a,b,color,width){var p=project(a[0],a[1],a[2]),q=project(b[0],b[1],b[2]);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.strokeStyle=color;ctx.lineWidth=width||1;ctx.stroke()}
+  function circle3(x,y,z,r,fill,stroke){var p=project(x,y,z);ctx.beginPath();ctx.arc(p.x,p.y,Math.max(2,r*p.s),0,Math.PI*2);ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke()}}
+  function draw(){
+    var w=viewport.clientWidth,h=viewport.clientHeight;if(!w||!h)return;
+    var grad=ctx.createLinearGradient(0,0,0,h);grad.addColorStop(0,'#152934');grad.addColorStop(.62,'#243840');grad.addColorStop(1,'#15191b');ctx.fillStyle=grad;ctx.fillRect(0,0,w,h);
+    // moon and clouds
+    ctx.globalAlpha=.9;circle3(-250,330,190,70,'#d9e3d8');ctx.globalAlpha=.16;
+    [[-310,250,80],[180,290,180],[340,210,210]].forEach(function(c){circle3(c[0],c[1],c[2],48,'#d4e3e7');circle3(c[0]+45,c[1]+5,c[2],34,'#d4e3e7')});ctx.globalAlpha=1;
+    // ground
+    poly([[-650,0,-250],[650,0,-250],[650,0,720],[-650,0,720]],'#2d3939');
+    for(var i=-500;i<=500;i+=100)line3([i,1,-200],[i,1,650],'rgba(143,176,170,.2)',1);
+    for(var z=-200;z<=650;z+=100)line3([-600,1,z],[600,1,z],'rgba(143,176,170,.2)',1);
+    // gate pillars and arch
+    poly([[-330,0,220],[-235,0,220],[-235,315,220],[-330,315,220]],'#3d6570','#6f99a2');
+    poly([[235,0,220],[330,0,220],[330,315,220],[235,315,220]],'#3d6570','#6f99a2');
+    line3([-282,315,220],[0,445,220],'#6f99a2',20);line3([0,445,220],[282,315,220],'#6f99a2',20);
+    line3([-270,305,219],[0,420,219],'#1e2f34',8);line3([0,420,219],[270,305,219],'#1e2f34',8);
+    // stage marks
+    var mark=project(0,2,10);ctx.beginPath();ctx.ellipse(mark.x,mark.y,70*mark.s,22*mark.s,0,0,Math.PI*2);ctx.fillStyle='rgba(255,120,73,.15)';ctx.fill();ctx.strokeStyle='rgba(255,120,73,.7)';ctx.stroke();
+    // editable 3D motion path and transform gizmo
+    var pa=project(-260,8,12),pc=project(-115,22,-18),pb=project(0,8,12);ctx.save();ctx.setLineDash([6,5]);ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.quadraticCurveTo(pc.x,pc.y,pb.x,pb.y);ctx.strokeStyle='rgba(91,193,206,.9)';ctx.lineWidth=2;ctx.stroke();ctx.restore();
+    [pa,pb].forEach(function(p){ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fillStyle='#5bc1ce';ctx.fill();ctx.strokeStyle='#fff';ctx.stroke()});
+    line3([0,8,12],[80,8,12],'#e95b4d',3);line3([0,8,12],[0,88,12],'#50a76f',3);line3([0,8,12],[0,8,92],'#4f8fcf',3);
+    drawActor();
+    // camera target crosshair
+    var p=project(0,150,20);ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(p.x-8,p.y);ctx.lineTo(p.x+8,p.y);ctx.moveTo(p.x,p.y-8);ctx.lineTo(p.x,p.y+8);ctx.stroke();
+  }
+  function currentBeat(){for(var i=0;i<beats.length;i++)if(time>=beats[i].start&&time<beats[i].end)return beats[i];return beats[beats.length-1]}
+  function drawActor(){
+    var b=currentBeat(), local=(time-b.start)/(b.end-b.start), x=0,y=0;
+    if(b.pose==='walk')x=-260+(260*local);
+    if(b.pose==='hop')y=Math.sin(local*Math.PI)*75;
+    var body='#c94c22',dark='#612b1e',skin='#e3a179',outline='#151719';
+    // feet
+    var footSpread=b.pose==='plant'?38:24;
+    circle3(x-footSpread,y+16,12,25,dark,outline);circle3(x+footSpread,y+16,12,25,dark,outline);
+    // body and head
+    var bp=project(x,y+100,12),s=bp.s;ctx.beginPath();ctx.roundRect(bp.x-58*s,bp.y-75*s,116*s,150*s,34*s);ctx.fillStyle=body;ctx.fill();ctx.strokeStyle=outline;ctx.lineWidth=3;ctx.stroke();
+    circle3(x,y+235,12,58,skin,outline);
+    // hat
+    var tilt=b.pose==='hat'?Math.sin(local*Math.PI)*-.28:0,hp=project(x,y+294,12);ctx.save();ctx.translate(hp.x,hp.y);ctx.rotate(tilt);ctx.fillStyle='#162a2f';ctx.strokeStyle=outline;ctx.lineWidth=3;ctx.fillRect(-60*s,-15*s,120*s,18*s);ctx.strokeRect(-60*s,-15*s,120*s,18*s);ctx.beginPath();ctx.roundRect(-39*s,-60*s,78*s,51*s,8*s);ctx.fill();ctx.stroke();ctx.restore();
+    // face
+    var eyeL=project(x-20,y+245,5),eyeR=project(x+20,y+245,5);ctx.fillStyle=outline;ctx.beginPath();ctx.arc(eyeL.x,eyeL.y,4*s,0,7);ctx.arc(eyeR.x,eyeR.y,4*s,0,7);ctx.fill();
+    // arms
+    var wave=b.pose==='wave'?Math.sin(local*Math.PI*5)*18:0;
+    if(b.pose==='wave'){line3([x-48,y+160,12],[x-92,y+250+wave,12],skin,14);circle3(x-92,y+257+wave,12,14,skin,outline)}
+    else if(b.pose==='hat'){line3([x-48,y+160,12],[x-35,y+276,12],skin,14);circle3(x-35,y+282,12,14,skin,outline)}
+    else {line3([x-48,y+160,12],[x-78,y+92,12],skin,14);circle3(x-78,y+86,12,14,skin,outline)}
+    line3([x+48,y+160,12],[x+78,y+92,12],skin,14);circle3(x+78,y+86,12,14,skin,outline);
+  }
+  function updateUI(){
+    var frames=Math.round(time*FPS),sec=Math.floor(frames/FPS),fr=frames%FPS;
+    timecode.textContent='00:'+String(sec).padStart(2,'0')+':'+String(fr).padStart(2,'0');
+    playhead.style.transform='translateX(calc((100vw - 112px) * 0))';
+    playhead.style.left='calc(112px + '+(time/DURATION*100)+'% - '+(time/DURATION*112)+'px)';
+    var b=currentBeat();document.getElementById('beatLabel').textContent=b.name;
+    document.getElementById('poseSelect').value=b.name;
+    var clips=document.querySelectorAll('.clip');clips.forEach(function(c){c.classList.toggle('selected',Math.abs(Number(c.dataset.time)-Math.max(b.start+.1,.1))<.25)});
+    draw();
+  }
+  function tick(ts){if(!playing)return;var dt=Math.min(.05,(ts-last)/1000||0);last=ts;time+=dt;if(time>=DURATION){if(document.getElementById('loopToggle').checked)time=0;else{time=DURATION;setPlaying(false)}}updateUI();if(playing)requestAnimationFrame(tick)}
+  function setPlaying(v){playing=v;playBtn.setAttribute('aria-label',v?'Pause sequence':'Play sequence');playIcon.innerHTML=v?'<path d="M8 5v14M16 5v14"/>':'<path d="m8 5 11 7-11 7z"/>';if(v){last=performance.now();if(time>=DURATION)time=0;requestAnimationFrame(tick)}}
+  function seek(t){time=Math.max(0,Math.min(DURATION,t));updateUI()}
+  function showToast(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(function(){toast.classList.remove('show')},1700)}
+  function addKey(track){
+    var snap=document.getElementById('snapToggle').checked, t=snap?Math.round(time*10)/10:Math.round(time*100)/100;
+    history.push({track:track,time:t});customKeys.push({track:track,time:t});
+    var lane=document.querySelector('[data-track="'+track+'"]');if(lane){var k=document.createElement('span');k.className='key custom';k.style.left=(t/DURATION*100)+'%';k.dataset.time=t;lane.appendChild(k)}
+    showToast((track==='actor'?'Actor pose':'Camera')+' key added at '+t.toFixed(1)+'s');
+  }
+  function exportData(){
+    return {
+      schema:'selsocsoc.cinematic.v1', id:'mayor-mayor-intro', title:'Mayor Mayor intro', fps:FPS, duration:DURATION,
+      playback:{nonInteractive:document.getElementById('lockInput').checked,loop:false,returnControl:true},
+      set:{id:'cyclical-city-gate'}, actors:[{id:'mayor-mayor',spawn:'stage-left',beats:beats.map(function(b){return{time:b.start,duration:Number((b.end-b.start).toFixed(2)),action:b.pose,easing:document.getElementById('easeSelect').value}})}],
+      camera:{name:document.getElementById('shotName').value||'Wide arrival',transform:{position:[Number(document.getElementById('posX').value),Number(document.getElementById('posY').value),Number(document.getElementById('posZ').value)],rotationDegrees:[Number(document.getElementById('rotX').value),Number(document.getElementById('rotY').value),Number(document.getElementById('rotZ').value)]},keys:cameraKeys.concat(customKeys.filter(function(k){return k.track==='camera'}).map(function(k){return{time:k.time,lens:Number(document.getElementById('lens').value),frame:document.querySelector('#framingSeg .active').dataset.frame,position:[Number(document.getElementById('posX').value),Number(document.getElementById('posY').value),Number(document.getElementById('posZ').value)],rotationDegrees:[Number(document.getElementById('rotX').value),Number(document.getElementById('rotY').value),Number(document.getElementById('rotZ').value)]}}))},
+      lighting:{rig:'warm-key',keys:lightKeys}, audio:{syncMarkers:[]}, dialogue:[], events:[{time:DURATION,type:'sequence.complete'}]
+    };
+  }
+  document.getElementById('playBtn').addEventListener('click',function(){setPlaying(!playing)});
+  document.getElementById('rewindBtn').addEventListener('click',function(){setPlaying(false);seek(0)});
+  document.getElementById('frameBtn').addEventListener('click',function(){orbit=-.13;zoom=1;draw();showToast('Actor framed')});
+  document.getElementById('addKeyBtn').addEventListener('click',function(){addKey(selectedTrack)});
+  document.getElementById('addKeySide').addEventListener('click',function(){addKey(selectedTrack)});
+  document.getElementById('actorKeyBtn').addEventListener('click',function(){selectedTrack='actor';addKey('actor')});
+  document.getElementById('transformKeyBtn').addEventListener('click',function(){selectedTrack='camera';addKey('camera')});
+  document.getElementById('undoBtn').addEventListener('click',function(){if(!history.length){showToast('Nothing to undo');return}history.pop();customKeys.pop();var all=document.querySelectorAll('.key.custom');if(all.length)all[all.length-1].remove();showToast('Last keyframe removed')});
+  document.querySelectorAll('[data-time]').forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();setPlaying(false);seek(Number(el.dataset.time))})});
+  document.querySelectorAll('.track-lane').forEach(function(lane){lane.addEventListener('click',function(e){if(e.target.closest('.clip,.key'))return;selectedTrack=lane.dataset.track;var r=lane.getBoundingClientRect();seek((e.clientX-r.left)/r.width*DURATION)})});
+  document.querySelectorAll('.scene-item').forEach(function(el){el.addEventListener('click',function(){document.querySelectorAll('.scene-item').forEach(function(x){x.classList.remove('active')});el.classList.add('active');if(el.dataset.select){document.getElementById('selectedName').textContent=el.querySelector('.label').textContent;selectedTrack=el.dataset.select==='camera'?'camera':el.dataset.select==='light'?'light':'actor'}})});
+  document.getElementById('lens').addEventListener('input',function(){document.getElementById('lensValue').textContent=this.value+' mm';document.getElementById('cameraHud').textContent=this.value+' MM · '+document.querySelector('#framingSeg .active').textContent.toUpperCase()});
+  document.getElementById('durationRange').addEventListener('input',function(){document.getElementById('blendValue').textContent=(Number(this.value)/100).toFixed(2)+' s'});
+  document.getElementById('shotName').addEventListener('input',function(){document.getElementById('shotPill').textContent=this.value||'Untitled shot'});
+  document.querySelectorAll('#framingSeg button').forEach(function(btn){btn.addEventListener('click',function(){document.querySelectorAll('#framingSeg button').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');document.getElementById('cameraHud').textContent=document.getElementById('lens').value+' MM · '+btn.textContent.toUpperCase();zoom=btn.dataset.frame==='wide'?1:btn.dataset.frame==='medium'?1.25:1.55;draw()})});
+  document.getElementById('poseSelect').addEventListener('change',function(e){var found=beats.find(function(b){return b.name===e.target.value});if(found)seek(found.start+.05)});
+  document.getElementById('exportBtn').addEventListener('click',function(){document.getElementById('exportModal').classList.add('open')});
+  document.getElementById('closeModal').addEventListener('click',function(){document.getElementById('exportModal').classList.remove('open')});
+  document.getElementById('exportModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open')});
+  document.getElementById('copyPathBtn').addEventListener('click',function(){navigator.clipboard.writeText(document.getElementById('exportPath').textContent).then(function(){showToast('Game path copied')})});
+  document.getElementById('downloadBtn').addEventListener('click',function(){var blob=new Blob([JSON.stringify(exportData(),null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mayor-mayor-intro.sequence.json';a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},500);document.getElementById('exportModal').classList.remove('open');showToast('Sequence JSON downloaded')});
+  document.getElementById('importFile').addEventListener('change',function(){var file=this.files&&this.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(){try{var data=JSON.parse(reader.result);if(!data.schema||data.schema.indexOf('selsocsoc.cinematic')!==0)throw new Error();if(typeof data.duration==='number')DURATION=Math.max(1,data.duration);if(data.title)document.querySelector('.sequence-name').textContent=data.title;showToast('Sequence imported');seek(0)}catch(e){showToast('That sequence file is not supported')}};reader.readAsText(file);this.value=''});
+  document.querySelectorAll('.mobile-tabs button').forEach(function(btn){btn.addEventListener('click',function(){document.body.dataset.mobilePanel=btn.dataset.panel;document.querySelectorAll('.mobile-tabs button').forEach(function(b){b.classList.toggle('active',b===btn)})})});
+  var drag=false,lastX=0;canvas.addEventListener('pointerdown',function(e){drag=true;lastX=e.clientX;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',function(e){if(!drag)return;orbit+=(e.clientX-lastX)*.006;lastX=e.clientX;draw()});canvas.addEventListener('pointerup',function(){drag=false});canvas.addEventListener('wheel',function(e){e.preventDefault();zoom=Math.max(.7,Math.min(1.7,zoom-e.deltaY*.001));draw()},{passive:false});
+  window.addEventListener('resize',resize);resize();updateUI();
+})();
+</script>
+</body>
+</html>
