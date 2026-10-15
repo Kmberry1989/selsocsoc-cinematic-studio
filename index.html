@@ -330,7 +330,7 @@
   var NPC_ASSET_BASE='https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/';
   var NPC_BY_ID={};NPCS.forEach(function(n){NPC_BY_ID[n.id]=n;});
   function npcFacePath(id){var n=NPC_BY_ID[id];if(n&&n.faceUrl)return NPC_ASSET_BASE+n.faceUrl;return NPC_ASSET_BASE+'assets/npc-faces/npc-'+id+'-face.png';}
-  function npcOutfitPath(id){var n=NPC_BY_ID[id];if(n&&n.outfitUrl)return NPC_ASSET_BASE+n.outfitUrl;return NPC_ASSET_BASE+'assets/npc-outfits/npc-'+id+'.png';}
+  function npcOutfitPath(id){var n=NPC_BY_ID[id];if(n&&n.outfitUrl)return NPC_ASSET_BASE+n.outfitUrl;return NPC_ASSET_BASE+'assets/npc-outfits/npc-'+id+'-v2.png';}
   function refreshActorOptions(){var sel=document.getElementById('actorSelect');if(!sel)return;var cur=sel.value;sel.innerHTML='';NPCS.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel.appendChild(o);});if(cur)sel.value=cur;}
   fetch(NPC_MANIFEST_URL,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('npc manifest '+r.status);return r.json();}).then(function(m){
     if(m.assetBase)NPC_ASSET_BASE=m.assetBase;
@@ -339,7 +339,7 @@
   }).catch(function(e){console.warn('NPC manifest unavailable, using built-in cast',e);});
   var actorId='player';
   var SKIN=0xe6b088;
-  var PLAYER_OUTFIT='assets/outfit-textures/outfit-harvest-tunic.png';
+  var PLAYER_OUTFIT='assets/outfit-textures/harvest-tunic-v2.png';
 
   /* ================= DOM ================= */
   var viewport=document.getElementById('viewport');
@@ -360,29 +360,22 @@
   var texLoader=new THREE.TextureLoader();
   var texCache={};
 
-  // Outfit UV panel insets from the game's outfit pipeline (4-island atlas layout)
-  var playerPanelInsets=[{uMin:.047,uMax:.234,vMin:.094,vMax:.907},{uMin:.281,uMax:.469,vMin:.094,vMax:.907},{uMin:.531,uMax:.719,vMin:.094,vMax:.907},{uMin:.766,uMax:.953,vMin:.094,vMax:.907}];
-  var npcPanelInsets=[{uMin:.03,uMax:.47,vMin:.523,vMax:.894},{uMin:.53,uMax:.97,vMin:.523,vMax:.894},{uMin:.03,uMax:.47,vMin:.023,vMax:.394},{uMin:.53,uMax:.97,vMin:.023,vMax:.394}];
-
-  // Generates body UVs projecting onto the 4 outfit atlas panels (ported from the game's outfit pipeline)
-  function makeOutfitGeometry(source,panels){
+  // Outfit UVs: v2 outfits are ONE continuous wraparound texture (2:1),
+  // matching the game's npc-outfits.js / outfit-textures.js pipeline.
+  // Body angle around Y maps directly to u: FRONT at u=0.5, BACK at the u=0/1 seam.
+  function makeOutfitGeometry(source){
     var geo=source.index?source.toNonIndexed():source.clone();
     var pos=geo.getAttribute('position'), uv=new Float32Array(pos.count*2);
-    var minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,minZ=Infinity,maxZ=-Infinity,i;
-    for(i=0;i<pos.count;i++){minX=Math.min(minX,pos.getX(i));maxX=Math.max(maxX,pos.getX(i));minY=Math.min(minY,pos.getY(i));maxY=Math.max(maxY,pos.getY(i));minZ=Math.min(minZ,pos.getZ(i));maxZ=Math.max(maxZ,pos.getZ(i));}
-    var width=Math.max(.0001,maxX-minX),height=Math.max(.0001,maxY-minY),depth=Math.max(.0001,maxZ-minZ);
-    var A=new THREE.Vector3(),B=new THREE.Vector3(),C=new THREE.Vector3(),AB=new THREE.Vector3(),AC=new THREE.Vector3(),N=new THREE.Vector3();
-    var flat={u:panels[0].uMin,v:panels[0].vMin};
-    for(i=0;i<pos.count;i+=3){
-      A.fromBufferAttribute(pos,i);B.fromBufferAttribute(pos,i+1);C.fromBufferAttribute(pos,i+2);
-      AB.subVectors(B,A);AC.subVectors(C,A);N.crossVectors(AB,AC).normalize();
-      if(Math.abs(N.y)>.55){for(var j=0;j<3;j++){uv[(i+j)*2]=flat.u;uv[(i+j)*2+1]=flat.v;}continue;}
-      var sector=((Math.round(Math.atan2(N.x,N.z)/(Math.PI/2))%4)+4)%4, panel=panels[sector];
-      for(var k=0;k<3;k++){var idx=i+k,x=pos.getX(idx),z=pos.getZ(idx);
-        var local=sector===0?(x-minX)/width:sector===1?(maxZ-z)/depth:sector===2?(maxX-x)/width:(z-minZ)/depth;
-        var vertical=(pos.getY(idx)-minY)/height;
-        uv[idx*2]=panel.uMin+local*(panel.uMax-panel.uMin);
-        uv[idx*2+1]=panel.vMin+vertical*(panel.vMax-panel.vMin);}
+    var minY=Infinity,maxY=-Infinity,i;
+    for(i=0;i<pos.count;i++){minY=Math.min(minY,pos.getY(i));maxY=Math.max(maxY,pos.getY(i));}
+    var height=Math.max(.0001,maxY-minY);
+    for(i=0;i<pos.count;i++){
+      var x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i);
+      var theta=Math.atan2(x,z);
+      var u=0.5-theta/(Math.PI*2);
+      u=((u%1)+1)%1;
+      uv[i*2]=u;
+      uv[i*2+1]=(y-minY)/height;
     }
     geo.setAttribute('uv',new THREE.BufferAttribute(uv,2));
     geo.computeVertexNormals();
@@ -485,7 +478,7 @@
     facePlane.position.set(0,0,0.126);facePlane.renderOrder=3;headGroup.add(facePlane);
     // real outfit overlay mapped onto the peg body
     outfitMesh=new THREE.Mesh(
-      makeOutfitGeometry(bodyNode.geometry,npcPanelInsets),
+      makeOutfitGeometry(bodyNode.geometry),
       new THREE.MeshStandardMaterial({transparent:true,alphaTest:0.02,depthWrite:false,roughness:0.9,metalness:0}));
     outfitMesh.scale.set(1.012,1.004,1.012);outfitMesh.renderOrder=4;
     bodyNode.add(outfitMesh);
@@ -522,8 +515,9 @@
     try{
       var opath=isPlayer?PLAYER_OUTFIT:npcOutfitPath(id);
       var ot=await loadTexture(opath);
-      // rebuild geometry with the right panel layout (player vs NPC atlas)
-      var geo=makeOutfitGeometry(bodyNode.geometry,isPlayer?playerPanelInsets:npcPanelInsets);
+      ot.wrapS=THREE.RepeatWrapping;
+      // rebuild geometry with wraparound UVs (v2 continuous outfit textures)
+      var geo=makeOutfitGeometry(bodyNode.geometry);
       outfitMesh.geometry.dispose();outfitMesh.geometry=geo;
       outfitMesh.material.map=ot;outfitMesh.material.color.set(0xffffff);
       outfitMesh.material.needsUpdate=true;outfitMesh.visible=true;
