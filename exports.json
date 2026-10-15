@@ -1,0 +1,18 @@
+{
+  "editor": "cinematic-studio",
+  "name": "Cinematic Studio",
+  "shares": [
+    {
+      "type": "cinematic-json",
+      "format": "json",
+      "location": "exportable from app",
+      "note": "Game-ready cinematic sequences (poses, camera, lighting)"
+    }
+  ],
+  "consumes": [
+    "npc-faces",
+    "npc-outfits",
+    "snug-pose-library"
+  ],
+  "npcManifest": "https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/assets/npc/manifest.json"
+}
