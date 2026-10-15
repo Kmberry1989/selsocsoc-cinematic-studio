@@ -323,6 +323,17 @@
     {id:'fern-bramble',name:'Fern Bramble'},{id:'stanley-stamp',name:'Stanley Stamp'},
     {id:'bobby-gill',name:'Bobby Gill'}
   ];
+  var NPC_MANIFEST_URL='https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/assets/npc/manifest.json';
+  var NPC_ASSET_BASE='https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/';
+  var NPC_BY_ID={};NPCS.forEach(function(n){NPC_BY_ID[n.id]=n;});
+  function npcFacePath(id){var n=NPC_BY_ID[id];if(n&&n.faceUrl)return NPC_ASSET_BASE+n.faceUrl;return NPC_ASSET_BASE+'assets/npc-faces/npc-'+id+'-face.png';}
+  function npcOutfitPath(id){var n=NPC_BY_ID[id];if(n&&n.outfitUrl)return NPC_ASSET_BASE+n.outfitUrl;return NPC_ASSET_BASE+'assets/npc-outfits/npc-'+id+'.png';}
+  function refreshActorOptions(){var sel=document.getElementById('actorSelect');if(!sel)return;var cur=sel.value;sel.innerHTML='';NPCS.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel.appendChild(o);});if(cur)sel.value=cur;}
+  fetch(NPC_MANIFEST_URL,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('npc manifest '+r.status);return r.json();}).then(function(m){
+    if(m.assetBase)NPC_ASSET_BASE=m.assetBase;
+    var chars=(m.characters||[]).filter(function(c){return c.faceUrl&&c.outfitUrl;});
+    if(chars.length){NPCS=chars.map(function(c){return{id:c.id,name:c.name,role:c.role,faceUrl:c.faceUrl,outfitUrl:c.outfitUrl};});NPC_BY_ID={};NPCS.forEach(function(n){NPC_BY_ID[n.id]=n;});refreshActorOptions();}
+  }).catch(function(e){console.warn('NPC manifest unavailable, using built-in cast',e);});
   var actorId='player';
   var SKIN=0xe6b088;
   var PLAYER_OUTFIT='assets/outfit-textures/outfit-harvest-tunic.png';
@@ -499,14 +510,14 @@
       if(isPlayer){
         facePlane.material.map=null;facePlane.material.color.set(SKIN);
       }else{
-        var ft=await loadTexture('assets/npc-faces/face-'+id+'.png');
+        var ft=await loadTexture(npcFacePath(id));
         facePlane.material.map=ft;facePlane.material.color.set(0xffffff);
       }
       facePlane.material.needsUpdate=true;
     }catch(e){console.warn('face failed',id,e);}
     // outfit: real painted outfit PNG
     try{
-      var opath=isPlayer?PLAYER_OUTFIT:'assets/npc-outfits/npc-'+id+'.png';
+      var opath=isPlayer?PLAYER_OUTFIT:npcOutfitPath(id);
       var ot=await loadTexture(opath);
       // rebuild geometry with the right panel layout (player vs NPC atlas)
       var geo=makeOutfitGeometry(bodyNode.geometry,isPlayer?playerPanelInsets:npcPanelInsets);
@@ -691,11 +702,9 @@
   // pose dropdown: the game's real 8 poses
   poseSelect.innerHTML=REAL_POSES.map(function(p){return '<option value="'+p+'">'+p.charAt(0).toUpperCase()+p.slice(1)+'</option>';}).join('');
   // actor dropdown
+  refreshActorOptions();
   var actorSelect=document.getElementById('actorSelect');
   if(actorSelect){
-    NPCS.forEach(function(n){
-      var o=document.createElement('option');o.value=n.id;o.textContent=n.name;actorSelect.appendChild(o);
-    });
     actorSelect.addEventListener('change',function(){setActor(actorSelect.value);});
   }
 
