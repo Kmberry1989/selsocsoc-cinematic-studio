@@ -454,7 +454,9 @@
       var l2=l1.clone();l2.position.set(2.4,0,-1.6);
       var bench=await new Promise(function(res,rej){loader.load('assets/props/park-bench.glb',res,undefined,rej);});
       bench.scene.position.set(3.2,0,-2.2);bench.scene.rotation.y=-0.5;
-      [gl,gr,l1,l2,bench.scene].forEach(function(o){
+      var sign=await new Promise(function(res,rej){loader.load('assets/props/signpost.glb',res,undefined,rej);});
+      sign.scene.position.set(-3.2,0,-2.2);sign.scene.rotation.y=0.5;
+      [gl,gr,l1,l2,bench.scene,sign.scene].forEach(function(o){
         o.traverse(function(n){if(n.isMesh){n.castShadow=true;n.receiveShadow=true;}});
         scene.add(o);
       });
