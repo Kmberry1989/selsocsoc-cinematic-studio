@@ -288,6 +288,7 @@
   <div class="modal">
     <h2 id="exportTitle">Game-ready sequence</h2>
     <p>Exports the camera, actor poses, timing, lighting, and input lock as one sequence file.</p>
+    <p>Drop it in the game repo under <code>assets/cinematics/</code>, then open the game with <code>?cine=&lt;id&gt;</code> to play it in town.</p>
     <div class="pathbox"><code id="exportPath">assets/cinematics/mayor-mayor-intro.sequence.json</code><button class="iconbtn" id="copyPathBtn" aria-label="Copy destination path"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></div>
     <div class="modal-actions"><button class="toolbtn" id="closeModal">Cancel</button><button class="primary" id="downloadBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>Download JSON</button></div>
   </div>
@@ -319,18 +320,28 @@
 
   /* ================= Cast: real game characters ================= */
   var NPCS=[
-    {id:'lyla-lens',name:'Lyla Lens'},{id:'chip-chance',name:'Chip Chance'},
-    {id:'barnaby-bargain',name:'Barnaby Bargain'},{id:'pip-parade',name:'Pip Parade'},
-    {id:'agnes-alley',name:'Agnes Alley'},{id:'dottie-daly',name:'Dottie Daly'},
-    {id:'peggy-plank',name:'Peggy Plank'},{id:'mr-buck-coinsworth',name:'Mr. Buck Coinsworth'},
-    {id:'fern-bramble',name:'Fern Bramble'},{id:'stanley-stamp',name:'Stanley Stamp'},
-    {id:'bobby-gill',name:'Bobby Gill'}
+    {id:'mayor-mayor',name:'Mayor Mayor',local:true,faceUrl:'assets/npc-faces/npc-mayor-mayor-face-v2.png',outfitUrl:'assets/npc-outfits/npc-mayor-mayor-outfit-v2.png'},
+    {id:'gideon',name:'Gideon',local:true,faceUrl:'assets/npc-faces/npc-gideon-face-v2.png',outfitUrl:'assets/npc-outfits/npc-gideon-outfit-v2.png'},
+    {id:'lyla-lens',name:'Lyla Lens',local:true,faceUrl:'assets/npc-faces/npc-lyla-lens-face-v2.png',outfitUrl:'assets/npc-outfits/npc-lyla-lens-outfit-v2.png'},
+    {id:'chip-chance',name:'Chip Chance',local:true,faceUrl:'assets/npc-faces/npc-chip-chance-face-v2.png',outfitUrl:'assets/npc-outfits/npc-chip-chance-outfit-v2.png'},
+    {id:'barnaby-bargain',name:'Barnaby Bargain',local:true,faceUrl:'assets/npc-faces/npc-barnaby-bargain-face-v2.png',outfitUrl:'assets/npc-outfits/npc-barnaby-bargain-outfit-v2.png'},
+    {id:'pip-parade',name:'Pip Parade',local:true,faceUrl:'assets/npc-faces/npc-pip-parade-face-v2.png',outfitUrl:'assets/npc-outfits/npc-pip-parade-outfit-v2.png'},
+    {id:'agnes-alley',name:'Agnes Alley',local:true,faceUrl:'assets/npc-faces/npc-agnes-alley-face-v2.png',outfitUrl:'assets/npc-outfits/npc-agnes-alley-outfit-v2.png'},
+    {id:'dottie-daly',name:'Dottie Daly',local:true,faceUrl:'assets/npc-faces/npc-dottie-daly-face-v2.png',outfitUrl:'assets/npc-outfits/npc-dottie-daly-outfit-v2.png'},
+    {id:'peggy-plank',name:'Peggy Plank',local:true,faceUrl:'assets/npc-faces/npc-peggy-plank-face-v2.png',outfitUrl:'assets/npc-outfits/npc-peggy-plank-outfit-v2.png'},
+    {id:'mr-buck-coinsworth',name:'Mr. Buck Coinsworth',local:true,faceUrl:'assets/npc-faces/npc-mr-buck-coinsworth-face-v2.png',outfitUrl:'assets/npc-outfits/npc-mr-buck-coinsworth-outfit-v2.png'},
+    {id:'fern-bramble',name:'Fern Bramble',local:true,faceUrl:'assets/npc-faces/npc-fern-bramble-face-v2.png',outfitUrl:'assets/npc-outfits/npc-fern-bramble-outfit-v2.png'},
+    {id:'stanley-stamp',name:'Stanley Stamp',local:true,faceUrl:'assets/npc-faces/npc-stanley-stamp-face-v2.png',outfitUrl:'assets/npc-outfits/npc-stanley-stamp-outfit-v2.png'},
+    {id:'bobby-gill',name:'Bobby Gill',local:true,faceUrl:'assets/npc-faces/npc-bobby-gill-face-v2.png',outfitUrl:'assets/npc-outfits/npc-bobby-gill-outfit-v2.png'}
   ];
   var NPC_MANIFEST_URL='https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/assets/npc/manifest.json';
   var NPC_ASSET_BASE='https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/';
   var NPC_BY_ID={};NPCS.forEach(function(n){NPC_BY_ID[n.id]=n;});
-  function npcFacePath(id){var n=NPC_BY_ID[id];if(n&&n.faceUrl)return NPC_ASSET_BASE+n.faceUrl;return NPC_ASSET_BASE+'assets/npc-faces/npc-'+id+'-face.png';}
-  function npcOutfitPath(id){var n=NPC_BY_ID[id];if(n&&n.outfitUrl)return NPC_ASSET_BASE+n.outfitUrl;return NPC_ASSET_BASE+'assets/npc-outfits/npc-'+id+'-v2.png';}
+  // Manifest entries resolve against the remote asset base; the built-in
+  // fallback cast uses the bundled current art (local files), so the
+  // studio still shows the real looks with no network.
+  function npcFacePath(id){var n=NPC_BY_ID[id];if(n&&n.faceUrl)return n.local?n.faceUrl:NPC_ASSET_BASE+n.faceUrl;return 'assets/npc-faces/npc-'+id+'-face-v2.png';}
+  function npcOutfitPath(id){var n=NPC_BY_ID[id];if(n&&n.outfitUrl)return n.local?n.outfitUrl:NPC_ASSET_BASE+n.outfitUrl;return 'assets/npc-outfits/npc-'+id+'-outfit-v2.png';}
   function refreshActorOptions(){var sel=document.getElementById('actorSelect');if(!sel)return;var cur=sel.value;sel.innerHTML='';NPCS.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel.appendChild(o);});if(cur)sel.value=cur;}
   fetch(NPC_MANIFEST_URL,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('npc manifest '+r.status);return r.json();}).then(function(m){
     if(m.assetBase)NPC_ASSET_BASE=m.assetBase;
