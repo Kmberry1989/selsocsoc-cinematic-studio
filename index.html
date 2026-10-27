@@ -363,7 +363,18 @@
     if(chars.length){NPCS=chars.map(function(c){return{id:c.id,name:c.name,role:c.role,faceUrl:c.faceUrl,outfitUrl:c.outfitUrl};});NPC_BY_ID={};NPCS.forEach(function(n){NPC_BY_ID[n.id]=n;});refreshActorOptions();}
   }).catch(function(e){console.warn('NPC manifest unavailable, using built-in cast',e);});
   var actorId='player';
-  var SKIN=0xe6b088;
+  var SKIN=0xe6b088; // player default — unchanged
+  // Real game roster skin table, ported from selsocsoc
+  // assets/npc-roster.js (d0 entries, skin field). Verified identical
+  // to the SKIN tables already in the NPC Showcase and Accessory
+  // Editor. Nothing here is invented: each value is the game's.
+  var NPC_SKIN={
+    'mayor-mayor':0xc98f66,'gideon':0xb0825e,'lyla-lens':0xb97958,
+    'chip-chance':0x9a684a,'barnaby-bargain':0xd09a70,'pip-parade':0xc88965,
+    'agnes-alley':0xaa765b,'dottie-daly':0xe0ad82,'peggy-plank':0xb77b57,
+    'mr-buck-coinsworth':0xd8a279,'fern-bramble':0x936246,
+    'stanley-stamp':0xc58b66,'bobby-gill':0xb88361
+  };
   var PLAYER_OUTFIT='assets/outfit-textures/harvest-tunic-v2.png';
 
   /* ================= DOM ================= */
@@ -548,19 +559,19 @@
    * If a face PNG is ever redrawn, re-measure the eyes below. */
   var LIVING_S=1;
   var LIVING_EYES={
-    'mayor-mayor':{l:[0.29,0.55],r:[0.71,0.545],w:0.22,h:0.105,skin:'#c88c5e'},
-    'gideon':{l:[0.33,0.42],r:[0.68,0.42],w:0.135,h:0.065,skin:'#b27b59'},
-    'lyla-lens':{l:[0.29,0.47],r:[0.73,0.45],w:0.25,h:0.10,skin:'#ca8d5f'},
-    'chip-chance':{l:[0.32,0.62],r:[0.68,0.62],w:0.14,h:0.035,skin:'#cc9a6c'},
-    'barnaby-bargain':{l:[0.28,0.46],r:[0.71,0.46],w:0.22,h:0.06,skin:'#c88c5c'},
-    'pip-parade':{l:[0.31,0.435],r:[0.69,0.43],w:0.18,h:0.07,skin:'#ca8d5f'},
-    'agnes-alley':{l:[0.29,0.53],r:[0.70,0.53],w:0.22,h:0.11,skin:'#ca8d5f'},
-    'dottie-daly':{l:[0.30,0.51],r:[0.70,0.51],w:0.19,h:0.03,skin:'#daa576'},
-    'peggy-plank':{l:[0.28,0.40],r:[0.72,0.40],w:0.245,h:0.09,skin:'#ca8d5f'},
-    'mr-buck-coinsworth':{l:[0.30,0.46],r:[0.72,0.46],w:0.22,h:0.05,skin:'#c68a5d'},
-    'fern-bramble':{l:[0.28,0.46],r:[0.71,0.46],w:0.20,h:0.04,skin:'#ce986f'},
-    'stanley-stamp':{l:[0.29,0.445],r:[0.70,0.44],w:0.195,h:0.10,skin:'#d29567'},
-    'bobby-gill':{l:[0.29,0.43],r:[0.71,0.43],w:0.19,h:0.07,skin:'#be815a'}
+    'mayor-mayor':{l:[0.29,0.55],r:[0.71,0.545],w:0.22,h:0.105,skin:'#c98f66'},
+    'gideon':{l:[0.33,0.42],r:[0.68,0.42],w:0.135,h:0.065,skin:'#b0825e'},
+    'lyla-lens':{l:[0.29,0.47],r:[0.73,0.45],w:0.25,h:0.10,skin:'#b97958'},
+    'chip-chance':{l:[0.32,0.62],r:[0.68,0.62],w:0.14,h:0.035,skin:'#9a684a'},
+    'barnaby-bargain':{l:[0.28,0.46],r:[0.71,0.46],w:0.22,h:0.06,skin:'#d09a70'},
+    'pip-parade':{l:[0.31,0.435],r:[0.69,0.43],w:0.18,h:0.07,skin:'#c88965'},
+    'agnes-alley':{l:[0.29,0.53],r:[0.70,0.53],w:0.22,h:0.11,skin:'#aa765b'},
+    'dottie-daly':{l:[0.30,0.51],r:[0.70,0.51],w:0.19,h:0.03,skin:'#e0ad82'},
+    'peggy-plank':{l:[0.28,0.40],r:[0.72,0.40],w:0.245,h:0.09,skin:'#b77b57'},
+    'mr-buck-coinsworth':{l:[0.30,0.46],r:[0.72,0.46],w:0.22,h:0.05,skin:'#d8a279'},
+    'fern-bramble':{l:[0.28,0.46],r:[0.71,0.46],w:0.20,h:0.04,skin:'#936246'},
+    'stanley-stamp':{l:[0.29,0.445],r:[0.70,0.44],w:0.195,h:0.10,skin:'#c58b66'},
+    'bobby-gill':{l:[0.29,0.43],r:[0.71,0.43],w:0.19,h:0.07,skin:'#b88361'}
   };
   var LIVING_STATES=['neutral','smile','laugh','grin','frown','surprise','smirk','ooh'];
   var livingMouth=null, livingLidGroup=null, livingMouthTex=null, livingMouthState='smile';
@@ -688,6 +699,11 @@
     actorId=id;
     if(!actorGroup)return;
     var isPlayer=id==='player';
+    // Skin: coin head + hands share skinMat, so one set recolours both.
+    // Player keeps the existing 0xe6b088 default; NPCs get their real
+    // game roster skin from NPC_SKIN (previously every actor kept the
+    // player default because setActor never touched skinMat).
+    if(skinMat)skinMat.color.set(isPlayer?SKIN:(NPC_SKIN[id]||SKIN));
     // face: real painted NPC face on the 0.30 circle, or skin tone for
     // the player (the studio has no selfie atlas, so none is invented)
     try{
