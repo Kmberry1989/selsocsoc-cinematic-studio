@@ -107,7 +107,8 @@
     .axis-field{min-width:0}.axis-field label{display:block;font:600 10px "IBM Plex Mono",monospace;margin-bottom:4px}.axis-field input{min-width:0;padding:0 6px;text-align:right;font-family:"IBM Plex Mono",monospace;font-size:11px}
     .axis-x label{color:#d95745}.axis-y label{color:#378b5c}.axis-z label{color:#3678ba}
     .value{color:var(--accent-2);font-family:"IBM Plex Mono",monospace;font-size:10px}
-    select,input[type="text"],input[type="number"]{width:100%;border:1px solid var(--line);background:var(--panel-2);border-radius:6px;min-height:38px;padding:0 9px}
+    select,input[type="text"],input[type="number"],textarea{width:100%;border:1px solid var(--line);background:var(--panel-2);border-radius:6px;min-height:38px;padding:0 9px}
+    textarea{min-height:64px;resize:vertical;padding:8px 9px}
     input[type="range"]{width:100%;accent-color:var(--accent)}
     .seg{display:grid;grid-template-columns:repeat(3,1fr)}
     .seg button{border-radius:0;padding:0 6px;font-size:11px;min-height:34px}
@@ -152,6 +153,7 @@
     </button>
     <div class="sequence-name">Mayor Mayor intro</div>
     <span class="status">30 FPS · 6.0 SEC</span>
+    <button class="toolbtn" id="newSceneBtn" title="Start a clean scene"><span>New scene</span></button>
     <label class="toolbtn" for="importFile" title="Import sequence">
       <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span>Import</span>
     </label>
@@ -176,7 +178,7 @@
           <button class="scene-item" data-select="light"><span class="type">LGT</span><span class="label">Warm key light</span></button>
           <button class="scene-item" data-select="set"><span class="type">SET</span><span class="label">Cyclical City gate</span></button>
         </li>
-        <li class="subgroup">
+        <li class="subgroup" id="beatList">
           <div class="subgroup-title">Beats</div>
           <button class="scene-item" data-time="0.2"><span class="type">01</span><span class="label">Walk in</span></button>
           <button class="scene-item" data-time="1.55"><span class="type">02</span><span class="label">Plant feet</span></button>
@@ -252,7 +254,15 @@
 <div class="field"><label for="actorSelect">Cast</label><select id="actorSelect" aria-label="Cast member"><option value="player">Player Avatar</option></select></div>
                 <div class="field"><label for="poseSelect">Pose</label><select id="poseSelect"><option>Walk in</option><option>Plant feet</option><option>Tip hat</option><option>Wave</option><option>Hop</option><option>Hold</option></select></div>
         <button class="toolbtn wide" id="actorKeyBtn"><svg viewBox="0 0 24 24"><path d="m12 3 4 4-4 4-4-4zM5 17h14M12 11v6"/></svg>Key actor pose</button>
-        <p style="font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.4">Stage figure is the avatar-template authoring proxy. In-game playback uses the roster figure (capsule body, coin head at 1.66) — same poses, same face and outfit textures.</p>
+        <p style="font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.4">Stage figure is the game roster figure (capsule body, coin head at 1.66) — the same figure in-game playback uses, with the same poses, face and outfit textures.</p>
+      </div>
+      <div class="section">
+        <div class="section-title">Beat</div>
+        <div class="field"><label for="beatName">Beat name</label><input id="beatName" type="text" aria-label="Current beat name"></div>
+        <div class="field"><label for="beatDuration">Duration · seconds</label><input id="beatDuration" type="number" step="0.1" min="0.2" max="10" aria-label="Current beat duration"></div>
+        <div class="field"><label for="beatDialogue">Dialogue · spoken during this beat</label><textarea id="beatDialogue" aria-label="Dialogue for the current beat" placeholder="Leave empty for no line"></textarea></div>
+        <div class="field" style="display:flex;gap:7px"><button class="toolbtn" id="addBeatBtn" style="flex:1">Add beat</button><button class="toolbtn" id="removeBeatBtn" style="flex:1">Remove beat</button></div>
+        <p class="tip">Adding appends a 1-second neutral beat at the end. Removing never drops below one beat; later beats shift to close the gap. Dialogue exports as a timed subtitle line for this beat.</p>
       </div>
       <div class="section">
         <div class="section-title">3D transform · meters</div>
@@ -308,14 +318,16 @@
   var history=[];
   // Real poses from SnugPoseLibrary (the game's own pose data)
   var REAL_POSES=['neutral','wave','bow','cheer','point','shrug','think','curtsy','dance','sit'];
-  var beats=[
-    {start:0,end:1.4,name:'Walk in',pose:'neutral',move:true},
-    {start:1.4,end:2.2,name:'Plant feet',pose:'neutral'},
-    {start:2.2,end:3.1,name:'Tip hat',pose:'bow'},
-    {start:3.1,end:4.4,name:'Wave',pose:'wave'},
-    {start:4.4,end:5.2,name:'Hop',pose:'cheer',hop:true},
-    {start:5.2,end:6,name:'Hold',pose:'neutral'}
-  ];
+  function defaultBeats(){return [
+    {start:0,end:1.4,name:'Walk in',pose:'neutral',move:true,dialogue:''},
+    {start:1.4,end:2.2,name:'Plant feet',pose:'neutral',dialogue:''},
+    {start:2.2,end:3.1,name:'Tip hat',pose:'bow',dialogue:''},
+    {start:3.1,end:4.4,name:'Wave',pose:'wave',dialogue:''},
+    {start:4.4,end:5.2,name:'Hop',pose:'cheer',hop:true,dialogue:''},
+    {start:5.2,end:6,name:'Hold',pose:'neutral',dialogue:''}
+  ];}
+  var beats=defaultBeats();
+  var actorLabel='Player Avatar';
   var cameraKeys=[{time:0,lens:35,frame:'wide'},{time:2.28,lens:52,frame:'medium'},{time:4.38,lens:42,frame:'medium'}];
   var lightKeys=[{time:0,intensity:1.1},{time:3.1,intensity:1.3}];
   var customKeys=[];
@@ -366,7 +378,7 @@
 
   /* ================= Three.js viewport (real game models) ================= */
   var renderer=null, scene=null, camera=null;
-  var actorGroup=null, poseController=null, bodyNode=null, headGroup=null, facePlane=null, outfitMesh=null;
+  var actorGroup=null, poseController=null, bodyNode=null, headGroup=null, faceMesh=null, bodyMat=null, skinMat=null, handLGroup=null, handRGroup=null, footLGroup=null, footRGroup=null;
   var keyLight=null, ambientLight=null, fillLight=null;
   var threeReady=false;
   var camTarget=new THREE.Vector3(0,1.02,0);
@@ -395,13 +407,6 @@
     return geo;
   }
 
-  function makeFaceMaskTexture(){
-    var c=document.createElement('canvas');c.width=256;c.height=256;
-    var x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,256,256);
-    x.fillStyle='#fff';x.beginPath();x.arc(128,128,126,0,Math.PI*2);x.fill();
-    var t=new THREE.CanvasTexture(c);t.needsUpdate=true;return t;
-  }
-
   function loadTexture(path){
     if(texCache[path])return Promise.resolve(texCache[path]);
     return new Promise(function(res,rej){
@@ -411,10 +416,6 @@
       },undefined,rej);
     });
   }
-  function loadGLB(path){
-    return new Promise(function(res,rej){new THREE.GLTFLoader().load(path,res,undefined,rej);});
-  }
-
   async function initViewport(){
     renderer=new THREE.WebGLRenderer({canvas:stageCanvas,antialias:true});
     renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
@@ -477,28 +478,45 @@
   }
 
   async function loadActor(){
-    var gltf=await loadGLB('assets/snug-avatar-template.glb');
-    actorGroup=gltf.scene;
-    actorGroup.traverse(function(o){
-      if(/Ground_DoNotExport|ContactShadow_DoNotExport/.test(o.name))o.visible=false;
-      if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}
-    });
-    bodyNode=actorGroup.getObjectByName('BodyCore_Peg');
-    var faceNode=actorGroup.getObjectByName('FacePlaceholder_EdgeToEdge');
-    if(!bodyNode||!faceNode)throw new Error('avatar template missing body/face');
-    headGroup=faceNode.parent;faceNode.visible=false;
-    // real face plane (NPC painted face, or skin tone for the player)
-    facePlane=new THREE.Mesh(new THREE.PlaneGeometry(0.82,0.82),
-      new THREE.MeshStandardMaterial({color:SKIN,alphaMap:makeFaceMaskTexture(),alphaTest:0.5,roughness:0.9,metalness:0,side:THREE.DoubleSide}));
-    facePlane.position.set(0,0,0.126);facePlane.renderOrder=3;headGroup.add(facePlane);
+    // Procedural roster figure (game canon), NOT the GLB peg template.
+    // Part groups are named exactly like the GLB rig nodes (BodyRig,
+    // HeadRig, Hand_L/R, Foot_L/R) so the existing SnugPoseLibrary
+    // PoseController finds them unchanged — no vendor change needed.
+    // The GLB template file stays in the repo unused; nothing references
+    // it after this change.
+    actorGroup=new THREE.Group();
+    skinMat=new THREE.MeshStandardMaterial({color:SKIN,roughness:0.7});
+    bodyMat=new THREE.MeshStandardMaterial({roughness:0.85});
+    function mesh(geo,mat){var m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;return m;}
+    // BodyRig: capsule body (r 0.29, cyl 0.54) centred at 0.66, with the
+    // shoulder disc (r 0.27) at 0.97, i.e. +0.31 inside this group.
+    // Outfit texture goes directly on the capsule material, with the
+    // same wraparound UVs the game's cinematic player uses (FRONT at
+    // u=0.5, BACK at the u=0/1 seam).
+    bodyNode=new THREE.Group();bodyNode.name='BodyRig';bodyNode.position.set(0,0.66,0);
+    bodyNode.add(mesh(makeOutfitGeometry(new THREE.CapsuleGeometry(0.29,0.54,8,20)),bodyMat));
+    var shoulder=mesh(new THREE.CylinderGeometry(0.27,0.27,0.045,22),bodyMat);
+    shoulder.rotation.x=Math.PI/2;shoulder.position.set(0,0.31,0);bodyNode.add(shoulder);
+    actorGroup.add(bodyNode);
+    // HeadRig: coin head (r 0.34, depth 0.15) at 1.66, face circle 0.30
+    // at z 0.083, exactly as in the game roster figure.
+    headGroup=new THREE.Group();headGroup.name='HeadRig';headGroup.position.set(0,1.66,0);
+    var coin=mesh(new THREE.CylinderGeometry(0.34,0.34,0.15,32),skinMat);
+    coin.rotation.x=Math.PI/2;headGroup.add(coin);
+    faceMesh=new THREE.Mesh(new THREE.CircleGeometry(0.30,40),
+      new THREE.MeshBasicMaterial({color:SKIN,transparent:true}));
+    faceMesh.position.set(0,0,0.083);faceMesh.renderOrder=3;headGroup.add(faceMesh);
+    actorGroup.add(headGroup);
     createLivingFace();
-    // real outfit overlay mapped onto the peg body
-    outfitMesh=new THREE.Mesh(
-      makeOutfitGeometry(bodyNode.geometry),
-      new THREE.MeshStandardMaterial({transparent:true,alphaTest:0.02,depthWrite:false,roughness:0.9,metalness:0}));
-    outfitMesh.scale.set(1.012,1.004,1.012);outfitMesh.renderOrder=4;
-    bodyNode.add(outfitMesh);
-    applySkin();
+    // Hands (sphere 0.13 at +/-0.46, 0.68) and feet (box
+    // 0.25x0.14x0.42 at +/-0.19, 0.15, z 0.045), meshes at group origin
+    // so pose offsets land on the group, as with the GLB rig nodes.
+    function limb(name,x,y,z,geo,mat){var g=new THREE.Group();g.name=name;g.position.set(x,y,z);g.add(mesh(geo,mat));actorGroup.add(g);return g;}
+    handLGroup=limb('Hand_L',-0.46,0.68,0,new THREE.SphereGeometry(0.13,14,10),skinMat);
+    handRGroup=limb('Hand_R',0.46,0.68,0,new THREE.SphereGeometry(0.13,14,10),skinMat);
+    var shoeMat=new THREE.MeshStandardMaterial({color:0x3a3a3a,roughness:0.9});
+    footLGroup=limb('Foot_L',-0.19,0.15,0.045,new THREE.BoxGeometry(0.25,0.14,0.42),shoeMat);
+    footRGroup=limb('Foot_R',0.19,0.15,0.045,new THREE.BoxGeometry(0.25,0.14,0.42),shoeMat);
     poseController=new SnugPoseLibrary.PoseController(actorGroup,{alive:false});
     poseController.setPose('neutral');
     scene.add(actorGroup);
@@ -510,13 +528,13 @@
    * skin-colored lid planes over both eyes that sweep down and up on a
    * random timer. The mouth breathes gently even at rest. All three are
    * children of headGroup, so poses (bow, wave, cheer) carry them along.
-   * Scale: the studio face plane is 0.82 wide; the game's face disc is
-   * 0.60, so every game anchor is scaled by 0.82/0.60. The mouth applies
+   * Scale: the studio face is the game roster disc (0.60 diameter),
+   * so the game's measured eye/mouth anchors are used at scale 1. The mouth applies
    * to every actor (the player actor's blank skin gets a smile too);
    * lids only apply to the 13 NPCs, whose eye positions were measured
    * from the v2 face PNGs. Reduced-motion skips breathing and blinking.
    * If a face PNG is ever redrawn, re-measure the eyes below. */
-  var LIVING_S=0.82/0.60;
+  var LIVING_S=1;
   var LIVING_EYES={
     'mayor-mayor':{l:[0.29,0.55],r:[0.71,0.545],w:0.22,h:0.105,skin:'#c88c5e'},
     'gideon':{l:[0.33,0.42],r:[0.68,0.42],w:0.135,h:0.065,skin:'#b27b59'},
@@ -594,7 +612,7 @@
     livingMouth=new THREE.Mesh(
       new THREE.PlaneGeometry(0.26*LIVING_S,0.13*LIVING_S),
       new THREE.MeshStandardMaterial({map:tex.smile,transparent:true,depthWrite:false,alphaTest:0.02,roughness:0.92}));
-    livingMouth.position.set(0,-0.135*LIVING_S,0.126+0.016*LIVING_S);
+    livingMouth.position.set(0,-0.135*LIVING_S,0.083+0.016*LIVING_S);
     livingMouth.renderOrder=5;livingMouth.frustumCulled=false;livingMouth.castShadow=false;
     headGroup.add(livingMouth);
     livingLidGroup=new THREE.Group();headGroup.add(livingLidGroup);
@@ -616,7 +634,7 @@
       var lid=new THREE.Mesh(
         new THREE.PlaneGeometry(spec.w*0.60*1.3*LIVING_S,Math.max(spec.h*0.60*1.8,0.05)*LIVING_S),
         new THREE.MeshStandardMaterial({color:spec.skin,roughness:1}));
-      lid.position.set(x,y,0.126+0.008*LIVING_S);
+      lid.position.set(x,y,0.083+0.008*LIVING_S);
       lid.visible=false;lid.frustumCulled=false;lid.castShadow=false;
       livingLidGroup.add(lid);
     }
@@ -654,41 +672,31 @@
     states:LIVING_STATES.slice()
   };
 
-  function applySkin(){
-    if(!actorGroup)return;
-    actorGroup.traverse(function(o){
-      if(o.isMesh&&o.material&&o.material.name&&o.material.name.indexOf('Skin')!==-1){
-        o.material.color.set(SKIN);o.material.needsUpdate=true;
-      }
-    });
-  }
-
   async function setActor(id){
     actorId=id;
     if(!actorGroup)return;
     var isPlayer=id==='player';
-    // face: real painted NPC face, or skin tone for the player
+    // face: real painted NPC face on the 0.30 circle, or skin tone for
+    // the player (the studio has no selfie atlas, so none is invented)
     try{
       if(isPlayer){
-        facePlane.material.map=null;facePlane.material.color.set(SKIN);
+        faceMesh.material.map=null;faceMesh.material.color.set(SKIN);
       }else{
         var ft=await loadTexture(npcFacePath(id));
-        facePlane.material.map=ft;facePlane.material.color.set(0xffffff);
+        faceMesh.material.map=ft;faceMesh.material.color.set(0xffffff);
       }
-      facePlane.material.needsUpdate=true;
+      faceMesh.material.needsUpdate=true;
     }catch(e){console.warn('face failed',id,e);}
-    // outfit: real painted outfit PNG
+    // outfit: real painted outfit PNG on the capsule body material
+    // (shoulders share it, as in the game's cinematic player)
     try{
       var opath=isPlayer?PLAYER_OUTFIT:npcOutfitPath(id);
       var ot=await loadTexture(opath);
       ot.wrapS=THREE.RepeatWrapping;
-      // rebuild geometry with wraparound UVs (v2 continuous outfit textures)
-      var geo=makeOutfitGeometry(bodyNode.geometry);
-      outfitMesh.geometry.dispose();outfitMesh.geometry=geo;
-      outfitMesh.material.map=ot;outfitMesh.material.color.set(0xffffff);
-      outfitMesh.material.needsUpdate=true;outfitMesh.visible=true;
-    }catch(e){console.warn('outfit failed',id,e);outfitMesh.visible=false;}
+      bodyMat.map=ot;bodyMat.color.set(0xffffff);bodyMat.needsUpdate=true;
+    }catch(e){console.warn('outfit failed',id,e);bodyMat.map=null;bodyMat.color.set(0x4a6b8a);bodyMat.needsUpdate=true;}
     var label=isPlayer?'Player Avatar':(NPCS.find(function(n){return n.id===id;})||{}).name||id;
+    actorLabel=label;
     var sel2=document.getElementById('actorSelect');if(sel2)sel2.value=id;
     document.getElementById('selectedName').textContent=label;
     var trackLabel=document.getElementById('trackActorName');
@@ -798,6 +806,45 @@
     }
     if(poseController.pose!==b.pose)poseController.setPose(b.pose);
   }
+  function syncDuration(){var m=0;beats.forEach(function(b){m=Math.max(m,b.end);});DURATION=Math.max(0.2,m);}
+  var lastBeatIdx=-1;
+  function syncBeatFields(){
+    var idx=beats.indexOf(currentBeat());if(idx===lastBeatIdx)return;lastBeatIdx=idx;
+    var b=beats[idx];if(!b)return;
+    var n=document.getElementById('beatName');if(n&&document.activeElement!==n)n.value=b.name;
+    var d=document.getElementById('beatDuration');if(d&&document.activeElement!==d)d.value=(b.end-b.start).toFixed(1);
+    var g=document.getElementById('beatDialogue');if(g&&document.activeElement!==g)g.value=b.dialogue||'';
+  }
+  function renderBeatUI(){
+    var st=document.querySelector('.status');if(st)st.textContent=FPS+' FPS · '+DURATION.toFixed(1)+' SEC';
+    var ticks=document.querySelector('.ticks');
+    if(ticks){var n=Math.max(1,Math.ceil(DURATION)),h='';for(var i=0;i<=n;i++)h+='<span>'+i+'s</span>';ticks.innerHTML=h;}
+    document.querySelectorAll('.track-lane').forEach(function(l){l.style.backgroundSize='calc(100% / '+Math.max(1,Math.ceil(DURATION))+') 100%';});
+    var lane=document.querySelector('[data-track="actor"]');
+    if(lane){
+      lane.querySelectorAll('.clip').forEach(function(c){c.remove();});
+      beats.forEach(function(b){
+        var c=document.createElement('button');c.className='clip';
+        c.style.left=(b.start/DURATION*100)+'%';
+        c.style.width=Math.max(2,(b.end-b.start)/DURATION*100)+'%';
+        c.dataset.time=(b.start+0.1).toFixed(2);c.textContent=b.name;
+        c.addEventListener('click',function(e){e.stopPropagation();setPlaying(false);seek(Number(c.dataset.time));});
+        lane.appendChild(c);
+      });
+    }
+    var list=document.getElementById('beatList');
+    if(list){
+      var title=list.querySelector('.subgroup-title');list.innerHTML='';if(title)list.appendChild(title);
+      beats.forEach(function(b,i){
+        var btn=document.createElement('button');btn.className='scene-item';btn.dataset.time=b.start;
+        btn.innerHTML='<span class="type">'+String(i+1).padStart(2,'0')+'</span><span class="label"></span>';
+        btn.querySelector('.label').textContent=b.name;
+        btn.addEventListener('click',function(){document.querySelectorAll('.scene-item').forEach(function(x){x.classList.remove('active');});btn.classList.add('active');setPlaying(false);seek(b.start+0.05);});
+        list.appendChild(btn);
+      });
+    }
+    lastBeatIdx=-1;updateTimeline();
+  }
   function updateTimeline(){
     var frames=Math.round(time*FPS),sec=Math.floor(frames/FPS),fr=frames%FPS;
     timecode.textContent='00:'+String(sec).padStart(2,'0')+':'+String(fr).padStart(2,'0');
@@ -805,6 +852,7 @@
     var b=currentBeat();
     document.getElementById('beatLabel').textContent=b.name;
     poseSelect.value=b.pose;
+    syncBeatFields();
     var clips=document.querySelectorAll('.clip');
     clips.forEach(function(c){c.classList.toggle('selected',Math.abs(Number(c.dataset.time)-Math.max(b.start+.1,.1))<.25);});
     applyLighting();
@@ -846,6 +894,32 @@
     camera.updateProjectionMatrix();
   }
 
+  /* ================= Beat editing / new scene ================= */
+  function setBeatDuration(v){
+    var b=currentBeat();if(!b)return;
+    var dur=Math.max(0.2,Math.min(10,Number(v)||1)),delta=dur-(b.end-b.start);
+    if(!delta)return;var idx=beats.indexOf(b);b.end+=delta;
+    for(var i=idx+1;i<beats.length;i++){beats[i].start+=delta;beats[i].end+=delta;}
+    syncDuration();renderBeatUI();updateActorMotion();
+  }
+  function addBeat(){
+    var s=DURATION;beats.push({start:s,end:s+1,name:'New beat',pose:'neutral',dialogue:''});
+    syncDuration();renderBeatUI();seek(s+0.05);showToast('Beat added');
+  }
+  function removeBeat(){
+    if(beats.length<=1){showToast('A scene needs at least one beat');return;}
+    var b=currentBeat(),idx=beats.indexOf(b),dur=b.end-b.start;
+    beats.splice(idx,1);
+    for(var i=idx;i<beats.length;i++){beats[i].start-=dur;beats[i].end-=dur;}
+    syncDuration();renderBeatUI();seek(idx>0?beats[idx-1].start+0.05:0.05);showToast('Beat removed');
+  }
+  function newScene(){
+    setPlaying(false);beats=defaultBeats();customKeys=[];history=[];
+    document.querySelectorAll('.key.custom').forEach(function(k){k.remove();});
+    var sn=document.getElementById('sceneName');if(sn)sn.value='Untitled scene';
+    syncSceneName();syncDuration();renderBeatUI();seek(0);showToast('New scene ready');
+  }
+
   /* ================= Keys / export / import ================= */
   function addKey(track){
     var snap=document.getElementById('snapToggle').checked, t=snap?Math.round(time*10)/10:Math.round(time*100)/100;
@@ -858,6 +932,7 @@
   function sceneId(){return sceneTitle().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'untitled-scene';}
   function syncSceneName(){var h=document.querySelector('.sequence-name');if(h)h.textContent=sceneTitle();var p=document.getElementById('exportPath');if(p)p.textContent='assets/cinematics/'+sceneId()+'.sequence.json';}
   function exportData(){
+    var dlg=beats.filter(function(b){return b.dialogue&&b.dialogue.trim();}).map(function(b){return{time:b.start,end:b.end,speaker:actorLabel,text:b.dialogue.trim()};});
     return {
       schema:'selsocsoc.cinematic.v1', id:sceneId(), title:sceneTitle(), fps:FPS, duration:DURATION,
       playback:{nonInteractive:document.getElementById('lockInput').checked,loop:false,returnControl:true},
@@ -865,7 +940,7 @@
       actors:[{id:actorId,spawn:'stage-left',beats:beats.map(function(b){var o={time:b.start,duration:Number((b.end-b.start).toFixed(2)),action:b.pose,easing:document.getElementById('easeSelect').value};if(b.move)o.move=true;if(b.hop)o.hop=true;return o;})}],
       camera:{name:document.getElementById('shotName').value||'Wide arrival',transform:{position:[+posX.value||0,+posY.value||0,+posZ.value||0],rotationDegrees:[+rotX.value||0,+rotY.value||0,+rotZ.value||0]},keys:cameraKeys.concat(customKeys.filter(function(k){return k.track==='camera';}).map(function(k){return{time:k.time,lens:+lensInput.value||35,frame:(document.querySelector('#framingSeg .active')||{}).dataset?document.querySelector('#framingSeg .active').dataset.frame:'wide',position:[+posX.value||0,+posY.value||0,+posZ.value||0],rotationDegrees:[+rotX.value||0,+rotY.value||0,+rotZ.value||0]};}))},
       lighting:{rig:'warm-key',keys:lightKeys},
-      audio:{syncMarkers:[]}, dialogue:[],
+      audio:{syncMarkers:[]}, dialogue:dlg,
       events:[{time:DURATION,type:'sequence.complete'}]
     };
   }
@@ -943,6 +1018,13 @@
     // which is what the export writes out.
     var b=currentBeat();if(b){b.pose=e.target.value;if(poseController)poseController.setPose(e.target.value);updateTimeline();updateActorMotion();}
   });
+  document.getElementById('newSceneBtn').addEventListener('click',newScene);
+  document.getElementById('addBeatBtn').addEventListener('click',addBeat);
+  document.getElementById('removeBeatBtn').addEventListener('click',removeBeat);
+  document.getElementById('beatName').addEventListener('input',function(){var b=currentBeat();if(b){b.name=this.value;renderBeatUI();}});
+  document.getElementById('beatDuration').addEventListener('change',function(){setBeatDuration(this.value);});
+  document.getElementById('beatDialogue').addEventListener('input',function(){var b=currentBeat();if(b)b.dialogue=this.value;});
+  syncDuration();renderBeatUI();
   document.getElementById('exportBtn').addEventListener('click',function(){syncSceneName();document.getElementById('exportModal').classList.add('open');});
   document.getElementById('closeModal').addEventListener('click',function(){document.getElementById('exportModal').classList.remove('open');});
   document.getElementById('exportModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
@@ -965,7 +1047,23 @@
       try{
         var data=JSON.parse(reader.result);
         if(!data.schema||data.schema.indexOf('selsocsoc.cinematic')!==0)throw new Error();
-        if(typeof data.duration==='number')DURATION=Math.max(1,data.duration);
+        var impBeats=(data.actors&&data.actors[0]&&data.actors[0].beats)||[];
+        if(impBeats.length){
+          beats=impBeats.map(function(b){
+            var st=Number(b.time)||0,du=Number(b.duration)||1,act=b.action||b.pose||'neutral';
+            return{start:st,end:st+du,name:(act==='neutral'&&b.move)?'Walk in':act.charAt(0).toUpperCase()+act.slice(1),pose:act,move:!!b.move,hop:!!b.hop,dialogue:''};
+          });
+          (data.dialogue||[]).forEach(function(d){
+            var t=(d.time!==undefined?d.time:d.start);if(t===undefined)return;var target=null;
+            for(var i=0;i<beats.length;i++){if(t>=beats[i].start&&t<beats[i].end){target=beats[i];break;}}
+            if(!target)target=beats[beats.length-1];
+            if(target&&d.text)target.dialogue=d.text;
+          });
+          syncDuration();
+          if(typeof data.duration==='number'&&data.duration>DURATION)DURATION=data.duration;
+          if(data.actors[0].id&&(data.actors[0].id==='player'||NPC_BY_ID[data.actors[0].id]))setActor(data.actors[0].id);
+          renderBeatUI();
+        }else if(typeof data.duration==='number')DURATION=Math.max(1,data.duration);
         if(data.title||data.id){var sn=document.getElementById('sceneName');if(sn)sn.value=data.title||data.id.replace(/[-_]+/g,' ');syncSceneName();}
         showToast('Sequence imported');seek(0);
       }catch(e){showToast('That sequence file is not supported');}
@@ -1010,6 +1108,13 @@
     setPlaying:setPlaying,seek:seek,getTime:function(){return time;},
     setActor:setActor,getActor:function(){return actorId;},
     exportData:exportData,applyCamera:applyCamera,
+    setPose:function(p){if(poseController)poseController.setPose(p);},
+    getPose:function(){return poseController?poseController.pose:null;},
+    getFigure:function(){
+      if(!bodyNode||!headGroup||!handLGroup||!footLGroup)return null;
+      function xyz(o){return [o.position.x,o.position.y,o.position.z];}
+      return {body:xyz(bodyNode),head:xyz(headGroup),handL:xyz(handLGroup),handR:xyz(handRGroup),footL:xyz(footLGroup),footR:xyz(footRGroup)};
+    },
     ready:function(){return threeReady&&!!actorGroup;}
   };
 })();
