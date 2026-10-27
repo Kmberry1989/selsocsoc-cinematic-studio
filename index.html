@@ -407,6 +407,18 @@
     return geo;
   }
 
+  // The bundled three.min.js predates THREE.CapsuleGeometry (0 matches in
+  // vendor/three.min.js), so calling it threw inside initViewport and the
+  // live stage failed with "3D viewport failed to start". Build the same
+  // capsule as a lathe instead: bottom cap + straight side + top cap.
+  // Total height = length + 2*radius, centred on the group origin.
+  function makeCapsuleGeometry(r,len,capSeg,radialSeg){
+    var pts=[],i,a;
+    for(i=0;i<=capSeg;i++){a=-Math.PI/2+(i/capSeg)*(Math.PI/2);pts.push(new THREE.Vector2(r*Math.cos(a),-len/2+r*Math.sin(a)));}
+    for(i=1;i<=capSeg;i++){a=(i/capSeg)*(Math.PI/2);pts.push(new THREE.Vector2(r*Math.cos(a),len/2+r*Math.sin(a)));}
+    return new THREE.LatheGeometry(pts,radialSeg);
+  }
+
   function loadTexture(path){
     if(texCache[path])return Promise.resolve(texCache[path]);
     return new Promise(function(res,rej){
@@ -494,7 +506,7 @@
     // same wraparound UVs the game's cinematic player uses (FRONT at
     // u=0.5, BACK at the u=0/1 seam).
     bodyNode=new THREE.Group();bodyNode.name='BodyRig';bodyNode.position.set(0,0.66,0);
-    bodyNode.add(mesh(makeOutfitGeometry(new THREE.CapsuleGeometry(0.29,0.54,8,20)),bodyMat));
+    bodyNode.add(mesh(makeOutfitGeometry(makeCapsuleGeometry(0.29,0.54,8,20)),bodyMat));
     var shoulder=mesh(new THREE.CylinderGeometry(0.27,0.27,0.045,22),bodyMat);
     shoulder.rotation.x=Math.PI/2;shoulder.position.set(0,0.31,0);bodyNode.add(shoulder);
     actorGroup.add(bodyNode);
