@@ -36,7 +36,17 @@
     curtsy:complete(600,
       part([.025,-.10,0],[0,0,.09]),part([.03,-.07,0],[0,0,-.04]),
       part([-.12,.06,.02],[0,0,.16]),part([.06,.18,.02],[0,0,-.12]),
-      part([.11,0,.035],[0,0,.08]),part([-.09,-.025,-.07],[0,0,-.12]),'Curtsy')
+      part([.11,0,.035],[0,0,.08]),part([-.09,-.025,-.07],[0,0,-.12]),'Curtsy'),
+    // Ported verbatim from the game's snug-pose-library.js — these were
+    // missing from the studio, so Dance/Sit could not be used in a scene.
+    dance:complete(500,
+      part([0,.03,0],[0,.12,0]),part([0,.02,0],[0,-.12,.06]),
+      part([-.20,.48,.10],[0,0,-.30]),part([.20,.48,.10],[0,0,.30]),
+      part([-.05,.04,0],[0,0,-.06]),part([.05,.04,0],[0,0,.06]),'Dance'),
+    sit:complete(600,
+      part([0,-.26,.10],[.18,0,0]),part([0,-.30,.12],[.12,0,0]),
+      part([-.08,-.08,.14],[.22,0,0]),part([.08,-.08,.14],[.22,0,0]),
+      part([0,-.14,.30],[.55,0,0]),part([0,-.14,.30],[.55,0,0]),'Sit')
   });
 
   const NODE_NAMES={body:'BodyRig',head:'HeadRig',leftHand:'Hand_L',rightHand:'Hand_R',leftFoot:'Foot_L',rightFoot:'Foot_R'};

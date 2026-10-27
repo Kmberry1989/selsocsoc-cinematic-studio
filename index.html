@@ -242,7 +242,8 @@
       <div class="inspect-head"><h2>Inspector</h2><div class="selected-name" id="selectedName">Director camera</div><div class="selected-meta" id="selectedMeta">SHOT 01 · 00:00:00</div></div>
       <div class="section">
         <div class="section-title">Shot</div>
-        <div class="field"><label for="shotName">Name</label><input id="shotName" type="text" value="Wide arrival" aria-label="Shot name"></div>
+        <div class="field"><label for="sceneName">Scene</label><input id="sceneName" type="text" value="Mayor Mayor intro" aria-label="Scene name"></div>
+        <div class="field"><label for="shotName">Shot name</label><input id="shotName" type="text" value="Wide arrival" aria-label="Shot name"></div>
         <div class="field"><label for="lens">Lens <span class="value" id="lensValue">35 mm</span></label><input id="lens" type="range" min="18" max="85" value="35"></div>
         <div class="field"><label>Framing</label><div class="seg" id="framingSeg"><button data-frame="wide" class="active">Wide</button><button data-frame="medium">Medium</button><button data-frame="close">Close</button></div></div>
       </div>
@@ -251,6 +252,7 @@
 <div class="field"><label for="actorSelect">Cast</label><select id="actorSelect" aria-label="Cast member"><option value="player">Player Avatar</option></select></div>
                 <div class="field"><label for="poseSelect">Pose</label><select id="poseSelect"><option>Walk in</option><option>Plant feet</option><option>Tip hat</option><option>Wave</option><option>Hop</option><option>Hold</option></select></div>
         <button class="toolbtn wide" id="actorKeyBtn"><svg viewBox="0 0 24 24"><path d="m12 3 4 4-4 4-4-4zM5 17h14M12 11v6"/></svg>Key actor pose</button>
+        <p style="font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.4">Stage figure is the avatar-template authoring proxy. In-game playback uses the roster figure (capsule body, coin head at 1.66) — same poses, same face and outfit textures.</p>
       </div>
       <div class="section">
         <div class="section-title">3D transform · meters</div>
@@ -305,7 +307,7 @@
   var DURATION=6, FPS=30, time=0, playing=false, last=0, selectedTrack='actor';
   var history=[];
   // Real poses from SnugPoseLibrary (the game's own pose data)
-  var REAL_POSES=['neutral','wave','bow','cheer','point','shrug','think','curtsy'];
+  var REAL_POSES=['neutral','wave','bow','cheer','point','shrug','think','curtsy','dance','sit'];
   var beats=[
     {start:0,end:1.4,name:'Walk in',pose:'neutral',move:true},
     {start:1.4,end:2.2,name:'Plant feet',pose:'neutral'},
@@ -342,7 +344,7 @@
   // studio still shows the real looks with no network.
   function npcFacePath(id){var n=NPC_BY_ID[id];if(n&&n.faceUrl)return n.local?n.faceUrl:NPC_ASSET_BASE+n.faceUrl;return 'assets/npc-faces/npc-'+id+'-face-v2.png';}
   function npcOutfitPath(id){var n=NPC_BY_ID[id];if(n&&n.outfitUrl)return n.local?n.outfitUrl:NPC_ASSET_BASE+n.outfitUrl;return 'assets/npc-outfits/npc-'+id+'-outfit-v2.png';}
-  function refreshActorOptions(){var sel=document.getElementById('actorSelect');if(!sel)return;var cur=sel.value;sel.innerHTML='';NPCS.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel.appendChild(o);});if(cur)sel.value=cur;}
+  function refreshActorOptions(){var sel=document.getElementById('actorSelect');if(!sel)return;var cur=sel.value||actorId;sel.innerHTML='';var all=[{id:'player',name:'Player Avatar'}].concat(NPCS);all.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel.appendChild(o);});sel.value=all.some(function(n){return n.id===cur;})?cur:actorId;}
   fetch(NPC_MANIFEST_URL,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('npc manifest '+r.status);return r.json();}).then(function(m){
     if(m.assetBase)NPC_ASSET_BASE=m.assetBase;
     var chars=(m.characters||[]).filter(function(c){return c.faceUrl&&c.outfitUrl;});
@@ -687,6 +689,7 @@
       outfitMesh.material.needsUpdate=true;outfitMesh.visible=true;
     }catch(e){console.warn('outfit failed',id,e);outfitMesh.visible=false;}
     var label=isPlayer?'Player Avatar':(NPCS.find(function(n){return n.id===id;})||{}).name||id;
+    var sel2=document.getElementById('actorSelect');if(sel2)sel2.value=id;
     document.getElementById('selectedName').textContent=label;
     var trackLabel=document.getElementById('trackActorName');
     if(trackLabel)trackLabel.textContent=label;
@@ -828,7 +831,10 @@
     if(poseController)poseController.update(ts||performance.now());
     updateActorMotion();
     updateLivingFace(ts||performance.now());
-    if(threeReady)renderer.render(scene,camera);
+    // Render as soon as the scene exists, not only after every GLB/texture
+    // has loaded — otherwise the stage sits dark while assets stream in,
+    // which is what the first audit screenshot caught.
+    if(renderer&&scene&&camera)renderer.render(scene,camera);
   }
 
   function resize(){
@@ -848,12 +854,15 @@
     if(lane){var k=document.createElement('span');k.className='key custom';k.style.left=(t/DURATION*100)+'%';k.dataset.time=t;lane.appendChild(k);}
     showToast((track==='actor'?'Actor pose':'Camera')+' key added at '+t.toFixed(1)+'s');
   }
+  function sceneTitle(){var el=document.getElementById('sceneName');var t=el?el.value.trim():'';return t||'Mayor Mayor intro';}
+  function sceneId(){return sceneTitle().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'untitled-scene';}
+  function syncSceneName(){var h=document.querySelector('.sequence-name');if(h)h.textContent=sceneTitle();var p=document.getElementById('exportPath');if(p)p.textContent='assets/cinematics/'+sceneId()+'.sequence.json';}
   function exportData(){
     return {
-      schema:'selsocsoc.cinematic.v1', id:'mayor-mayor-intro', title:'Mayor Mayor intro', fps:FPS, duration:DURATION,
+      schema:'selsocsoc.cinematic.v1', id:sceneId(), title:sceneTitle(), fps:FPS, duration:DURATION,
       playback:{nonInteractive:document.getElementById('lockInput').checked,loop:false,returnControl:true},
       set:{id:'cyclical-city-gate'},
-      actors:[{id:actorId,spawn:'stage-left',beats:beats.map(function(b){return{time:b.start,duration:Number((b.end-b.start).toFixed(2)),action:b.pose,easing:document.getElementById('easeSelect').value};})}],
+      actors:[{id:actorId,spawn:'stage-left',beats:beats.map(function(b){var o={time:b.start,duration:Number((b.end-b.start).toFixed(2)),action:b.pose,easing:document.getElementById('easeSelect').value};if(b.move)o.move=true;if(b.hop)o.hop=true;return o;})}],
       camera:{name:document.getElementById('shotName').value||'Wide arrival',transform:{position:[+posX.value||0,+posY.value||0,+posZ.value||0],rotationDegrees:[+rotX.value||0,+rotY.value||0,+rotZ.value||0]},keys:cameraKeys.concat(customKeys.filter(function(k){return k.track==='camera';}).map(function(k){return{time:k.time,lens:+lensInput.value||35,frame:(document.querySelector('#framingSeg .active')||{}).dataset?document.querySelector('#framingSeg .active').dataset.frame:'wide',position:[+posX.value||0,+posY.value||0,+posZ.value||0],rotationDegrees:[+rotX.value||0,+rotY.value||0,+rotZ.value||0]};}))},
       lighting:{rig:'warm-key',keys:lightKeys},
       audio:{syncMarkers:[]}, dialogue:[],
@@ -928,18 +937,23 @@
     });
   });
   poseSelect.addEventListener('change',function(e){
-    var found=beats.find(function(b){return b.pose===e.target.value;});
-    if(found)seek(found.start+.05);
+    // Previously this only sought to a beat that already used the pose,
+    // so poses with no beat (including the new Dance/Sit) could never be
+    // used in a scene. Now picking a pose applies it to the current beat,
+    // which is what the export writes out.
+    var b=currentBeat();if(b){b.pose=e.target.value;if(poseController)poseController.setPose(e.target.value);updateTimeline();updateActorMotion();}
   });
-  document.getElementById('exportBtn').addEventListener('click',function(){document.getElementById('exportModal').classList.add('open');});
+  document.getElementById('exportBtn').addEventListener('click',function(){syncSceneName();document.getElementById('exportModal').classList.add('open');});
   document.getElementById('closeModal').addEventListener('click',function(){document.getElementById('exportModal').classList.remove('open');});
   document.getElementById('exportModal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
   document.getElementById('copyPathBtn').addEventListener('click',function(){
     navigator.clipboard.writeText(document.getElementById('exportPath').textContent).then(function(){showToast('Game path copied');});
   });
+  document.getElementById('sceneName').addEventListener('input',syncSceneName);
   document.getElementById('downloadBtn').addEventListener('click',function(){
+    syncSceneName();
     var blob=new Blob([JSON.stringify(exportData(),null,2)],{type:'application/json'});
-    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mayor-mayor-intro.sequence.json';a.click();
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=sceneId()+'.sequence.json';a.click();
     setTimeout(function(){URL.revokeObjectURL(a.href);},500);
     document.getElementById('exportModal').classList.remove('open');
     showToast('Sequence JSON downloaded');
@@ -952,7 +966,7 @@
         var data=JSON.parse(reader.result);
         if(!data.schema||data.schema.indexOf('selsocsoc.cinematic')!==0)throw new Error();
         if(typeof data.duration==='number')DURATION=Math.max(1,data.duration);
-        if(data.title)document.querySelector('.sequence-name').textContent=data.title;
+        if(data.title||data.id){var sn=document.getElementById('sceneName');if(sn)sn.value=data.title||data.id.replace(/[-_]+/g,' ');syncSceneName();}
         showToast('Sequence imported');seek(0);
       }catch(e){showToast('That sequence file is not supported');}
     };
@@ -978,11 +992,12 @@
 
   window.addEventListener('resize',resize);
 
-  // boot
+  // boot: start the render loop immediately so the stage shows the
+  // scene background/ground while GLBs stream in, instead of sitting
+  // dark until initViewport() fully resolves.
+  requestAnimationFrame(renderLoop);
   try{
-    initViewport().then(function(){
-      requestAnimationFrame(renderLoop);
-    }).catch(function(err){
+    initViewport().catch(function(err){
       console.error(err);
       showToast('3D viewport failed to start');
     });
