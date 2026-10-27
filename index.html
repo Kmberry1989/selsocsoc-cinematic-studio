@@ -269,7 +269,7 @@
         <div class="field"><label>Position</label><div class="xyz">
           <div class="axis-field axis-x"><label for="posX">X</label><input id="posX" type="number" step="0.1" value="0.0"></div>
           <div class="axis-field axis-y"><label for="posY">Y</label><input id="posY" type="number" step="0.1" value="1.6"></div>
-          <div class="axis-field axis-z"><label for="posZ">Z</label><input id="posZ" type="number" step="0.1" value="6.5"></div>
+          <div class="axis-field axis-z"><label for="posZ">Z</label><input id="posZ" type="number" step="0.1" value="8.5"></div>
         </div></div>
         <div class="field"><label>Rotation · degrees</label><div class="xyz">
           <div class="axis-field axis-x"><label for="rotX">X</label><input id="rotX" type="number" step="1" value="-8"></div>
@@ -970,8 +970,21 @@
   document.getElementById('playBtn').addEventListener('click',function(){setPlaying(!playing);});
   document.getElementById('rewindBtn').addEventListener('click',function(){setPlaying(false);seek(0);});
   document.getElementById('frameBtn').addEventListener('click',function(){
-    posX.value='0.0';posY.value='1.6';posZ.value='6.5';rotX.value='-8';rotY.value='0';rotZ.value='0';
-    applyCamera();showToast('Actor framed');
+    // Previously this only reset the camera to a fixed position and
+    // claimed "Actor framed" even when the actor was at the walk-start
+    // (x -2.6, off-centre). Now it actually frames the actor: the orbit
+    // target moves to the actor's current position at figure-centre
+    // height (1.11, half of the 0-2.22 roster figure), and the camera
+    // pulls back to 8.5m behind it — at the default lens that gives
+    // ~2.9m of vertical half-frame, so the whole figure fits with
+    // margin instead of being cut off at the feet.
+    var ax=actorGroup?actorGroup.position.x:0, az=actorGroup?actorGroup.position.z:0;
+    camTarget.set(ax,1.11,az);
+    posX.value=ax.toFixed(1);posY.value='1.6';posZ.value=(az+8.5).toFixed(1);
+    rotX.value='-3';rotY.value='0';rotZ.value='0';
+    applyCamera();
+    if(camera){camera.lookAt(camTarget);syncCameraFields();}
+    showToast('Actor framed');
   });
   document.getElementById('addKeyBtn').addEventListener('click',function(){addKey(selectedTrack);});
   document.getElementById('addKeySide').addEventListener('click',function(){addKey(selectedTrack);});
