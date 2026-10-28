@@ -573,7 +573,7 @@
     'stanley-stamp':{l:[0.29,0.445],r:[0.70,0.44],w:0.195,h:0.10,skin:'#c58b66'},
     'bobby-gill':{l:[0.29,0.43],r:[0.71,0.43],w:0.19,h:0.07,skin:'#b88361'}
   };
-  var LIVING_STATES=['neutral','smile','laugh','grin','frown','surprise','smirk','ooh'];
+  var LIVING_STATES=['neutral','smile','laugh','grin','frown','surprise','smirk','ooh','tongue','wink'];
   var livingMouth=null, livingLidGroup=null, livingMouthTex=null, livingMouthState='smile';
   var livingPhase=Math.random()*6, livingNextBlink=0, livingBlinkStart=0;
   var livingReducedMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -617,6 +617,13 @@
       ctx.beginPath();ctx.ellipse(128,64,15,19,0,0,Math.PI*2);
       ctx.fillStyle=DARK;ctx.fill();ctx.lineWidth=8;ctx.strokeStyle=INK;ctx.stroke();
     }
+    else if(state==='tongue'){
+      arc(68,50,128,108,188,50,11);
+      ctx.beginPath();ctx.moveTo(104,74);ctx.lineTo(152,74);
+      ctx.quadraticCurveTo(152,118,128,118);ctx.quadraticCurveTo(104,118,104,74);ctx.closePath();
+      ctx.fillStyle=TONGUE;ctx.fill();ctx.lineWidth=8;ctx.strokeStyle=INK;ctx.stroke();
+      ctx.beginPath();ctx.moveTo(128,78);ctx.lineTo(128,110);ctx.lineWidth=5;ctx.strokeStyle='#c85a5e';ctx.stroke();
+    } else if(state==='wink')arc(78,62,140,86,188,42,11);
     return canvas;
   }
   function livingMouthTextures(){
@@ -635,7 +642,7 @@
     livingMouth=new THREE.Mesh(
       new THREE.PlaneGeometry(0.26*LIVING_S,0.13*LIVING_S),
       new THREE.MeshStandardMaterial({map:tex.smile,transparent:true,depthWrite:false,alphaTest:0.02,roughness:0.92}));
-    livingMouth.position.set(0,-0.135*LIVING_S,0.083+0.016*LIVING_S);
+    livingMouth.position.set(0,-0.175*LIVING_S,0.083+0.016*LIVING_S);
     livingMouth.renderOrder=5;livingMouth.frustumCulled=false;livingMouth.castShadow=false;
     headGroup.add(livingMouth);
     livingLidGroup=new THREE.Group();headGroup.add(livingLidGroup);
@@ -683,6 +690,9 @@
       lid.visible=show;
       if(show)lid.scale.set(1,Math.max(openness,0.02),1);
     }
+    if(livingMouthState==='wink'&&livingLidGroup.children.length){
+      var wl=livingLidGroup.children[0]; wl.visible=true; wl.scale.set(1,1,1);
+    }
   }
   window.__snugStudioLivingFace={
     setMouth:function(state){
@@ -694,6 +704,41 @@
     },
     states:LIVING_STATES.slice()
   };
+
+  /* ---- NPC accessories on the stage figure (user-directed 2026-10-28) ----
+   * Same real GLBs and same anchors as the other editors: held in the right
+   * hand, hat on the head slot, cane mirrored in the left hand, back item
+   * hanging behind the body. Player actors get none (no selfie accessories). */
+  var CINE_HELD = {'mayor-mayor':'gavel.glb','gideon':'flag.glb','lyla-lens':'camera.glb','chip-chance':'die.glb','barnaby-bargain':'coin.glb','pip-parade':'balloon.glb','agnes-alley':'yarn.glb','dottie-daly':'scroll.glb','peggy-plank':'hammer.glb','mr-buck-coinsworth':'goldbar.glb','fern-bramble':'flower.glb','stanley-stamp':'envelope.glb','bobby-gill':'rod.glb'};
+  var CINE_HAT = {'mayor-mayor':'tophat.glb','gideon':'tourcap.glb','fern-bramble':'strawhat.glb','stanley-stamp':'mailcap.glb','bobby-gill':'buckethat.glb','lyla-lens':'press-fedora.glb','chip-chance':'showman-bowler.glb','barnaby-bargain':'bargain-bowler.glb','pip-parade':'confetti-crown.glb','agnes-alley':'cat-ears.glb','dottie-daly':'quest-beret.glb','peggy-plank':'hardhat.glb','mr-buck-coinsworth':'banker-bowler.glb'};
+  var CINE_LEFT = {'gideon':'cane.glb','chip-chance':'microphone.glb'};
+  var CINE_BACK = {'mayor-mayor':'cape.glb','gideon':'tour-backpack.glb','lyla-lens':'press-satchel.glb','chip-chance':'dice-pouch.glb','barnaby-bargain':'merchant-satchel.glb','pip-parade':'festival-banner.glb','agnes-alley':'cat-carrier.glb','dottie-daly':'quest-tube.glb','peggy-plank':'tool-roll.glb','mr-buck-coinsworth':'money-bag.glb','fern-bramble':'seed-pack.glb','stanley-stamp':'mailbag.glb','bobby-gill':'creel.glb'};
+  var cineAccGroup = null;
+  function attachCinematicAccessories(id){
+    if(cineAccGroup && cineAccGroup.parent) cineAccGroup.parent.remove(cineAccGroup);
+    cineAccGroup = null;
+    if(id === 'player' || !actorGroup) return;
+    var loader = new THREE.GLTFLoader();
+    var remote = 'https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/assets/npc-accessories/';
+    function attach(file, parent, x, y, z){
+      if(!file || !parent) return;
+      loader.load('assets/accessories/' + file, function(gltf){
+        var inst = gltf.scene; inst.position.set(x, y, z);
+        inst.traverse(function(o){ if(o.isMesh) o.castShadow = true; });
+        parent.add(inst);
+      }, undefined, function(){
+        loader.load(remote + file, function(gltf){
+          var inst = gltf.scene; inst.position.set(x, y, z);
+          inst.traverse(function(o){ if(o.isMesh) o.castShadow = true; });
+          parent.add(inst);
+        }, undefined, function(e){ console.warn('Cinematic: accessory failed', file, e); });
+      });
+    }
+    attach(CINE_HELD[id], handRGroup, 0, -0.04, 0.14);
+    attach(CINE_HAT[id], headGroup, 0, 0.27, 0);
+    attach(CINE_LEFT[id], handLGroup, 0, -0.04, 0.14);
+    attach(CINE_BACK[id], actorGroup, 0, 0.55, -0.31);
+  }
 
   async function setActor(id){
     actorId=id;
@@ -732,6 +777,7 @@
     var sideBtn=document.querySelector('.scene-item[data-select="mayor"] .label');
     if(sideBtn)sideBtn.textContent=label;
     setLivingLids(id);
+    attachCinematicAccessories(id);
   }
 
   /* ---- motion path (walk beat) in meters ---- */
