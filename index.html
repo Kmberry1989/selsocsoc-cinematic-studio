@@ -171,12 +171,14 @@
         <li class="subgroup">
           <div class="subgroup-title">Actors</div>
           <button class="scene-item" data-select="mayor"><span class="type">A1</span><span class="label">Mayor Mayor</span></button>
+          <button class="scene-item" data-select="actor2" id="actor2SideItem" style="display:none"><span class="type">A2</span><span class="label">Second actor</span></button>
         </li>
         <li class="subgroup">
           <div class="subgroup-title">Stage</div>
           <button class="scene-item" data-select="camera"><span class="type">CAM</span><span class="label">Director camera</span></button>
           <button class="scene-item" data-select="light"><span class="type">LGT</span><span class="label">Warm key light</span></button>
-          <button class="scene-item" data-select="set"><span class="type">SET</span><span class="label">Cyclical City gate</span></button>
+          <button class="scene-item" data-select="set" data-set="cyclical-city-gate"><span class="type">SET</span><span class="label">Cyclical City gate</span></button>
+          <button class="scene-item" data-select="set" data-set="cyclical-city-plaza"><span class="type">SET</span><span class="label">Cyclical City plaza</span></button>
         </li>
         <li class="subgroup" id="beatList">
           <div class="subgroup-title">Beats</div>
@@ -228,6 +230,10 @@
               <button class="clip" style="left:86.67%;width:13.33%" data-time="5.4">Hold</button>
             </div>
           </div>
+          <div class="track" id="trackActor2" style="display:none">
+            <div class="track-name"><span>A2</span><div><span id="trackActor2Name">Second actor</span><small>POSE</small></div></div>
+            <div class="track-lane" data-track="actor2"></div>
+          </div>
           <div class="track">
             <div class="track-name"><span>CAM</span><div>Director camera<small>TRANSFORM</small></div></div>
             <div class="track-lane" data-track="camera"><span class="key" style="left:0%"></span><span class="key" style="left:38%"></span><span class="key" style="left:73%"></span></div>
@@ -252,6 +258,7 @@
       <div class="section">
         <div class="section-title">Actor</div>
 <div class="field"><label for="actorSelect">Cast</label><select id="actorSelect" aria-label="Cast member"><option value="player">Player Avatar</option></select></div>
+<div class="field"><label for="actor2Select">Second actor</label><select id="actor2Select" aria-label="Second actor"><option value="">None</option></select></div>
                 <div class="field"><label for="poseSelect">Pose</label><select id="poseSelect"><option>Walk in</option><option>Plant feet</option><option>Tip hat</option><option>Wave</option><option>Hop</option><option>Hold</option></select></div>
         <button class="toolbtn wide" id="actorKeyBtn"><svg viewBox="0 0 24 24"><path d="m12 3 4 4-4 4-4-4zM5 17h14M12 11v6"/></svg>Key actor pose</button>
         <p style="font-size:11px;color:var(--muted);margin:8px 0 0;line-height:1.4">Stage figure is the game roster figure (capsule body, coin head at 1.66) — the same figure in-game playback uses, with the same poses, face and outfit textures.</p>
@@ -327,7 +334,10 @@
     {start:5.2,end:6,name:'Hold',pose:'neutral',dialogue:''}
   ];}
   var beats=defaultBeats();
+  var beats2=[];
   var actorLabel='Player Avatar';
+  var actor2Label='Second actor';
+  var currentSetId='cyclical-city-gate';
   var cameraKeys=[{time:0,lens:35,frame:'wide'},{time:2.28,lens:52,frame:'medium'},{time:4.38,lens:42,frame:'medium'}];
   var lightKeys=[{time:0,intensity:1.1},{time:3.1,intensity:1.3}];
   var customKeys=[];
@@ -356,7 +366,10 @@
   // studio still shows the real looks with no network.
   function npcFacePath(id){var n=NPC_BY_ID[id];if(n&&n.faceUrl)return n.local?n.faceUrl:NPC_ASSET_BASE+n.faceUrl;return 'assets/npc-faces/npc-'+id+'-face-v2.png';}
   function npcOutfitPath(id){var n=NPC_BY_ID[id];if(n&&n.outfitUrl)return n.local?n.outfitUrl:NPC_ASSET_BASE+n.outfitUrl;return 'assets/npc-outfits/npc-'+id+'-outfit-v2.png';}
-  function refreshActorOptions(){var sel=document.getElementById('actorSelect');if(!sel)return;var cur=sel.value||actorId;sel.innerHTML='';var all=[{id:'player',name:'Player Avatar'}].concat(NPCS);all.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel.appendChild(o);});sel.value=all.some(function(n){return n.id===cur;})?cur:actorId;}
+  function refreshActorOptions(){var sel=document.getElementById('actorSelect');if(!sel)return;var cur=sel.value||actorId;sel.innerHTML='';var all=[{id:'player',name:'Player Avatar'}].concat(NPCS);all.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel.appendChild(o);});sel.value=all.some(function(n){return n.id===cur;})?cur:actorId;
+    var sel2=document.getElementById('actor2Select');
+    if(sel2){var cur2=sel2.value||'';sel2.innerHTML='';var none=document.createElement('option');none.value='';none.textContent='None';sel2.appendChild(none);all.forEach(function(n){var o=document.createElement('option');o.value=n.id;o.textContent=n.name;sel2.appendChild(o);});sel2.value=all.some(function(n){return n.id===cur2;})?cur2:'';}
+  }
   fetch(NPC_MANIFEST_URL,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('npc manifest '+r.status);return r.json();}).then(function(m){
     if(m.assetBase)NPC_ASSET_BASE=m.assetBase;
     var chars=(m.characters||[]).filter(function(c){return c.faceUrl&&c.outfitUrl;});
@@ -390,6 +403,7 @@
   /* ================= Three.js viewport (real game models) ================= */
   var renderer=null, scene=null, camera=null;
   var actorGroup=null, poseController=null, bodyNode=null, headGroup=null, faceMesh=null, bodyMat=null, skinMat=null, handLGroup=null, handRGroup=null, footLGroup=null, footRGroup=null;
+  var fig1=null, fig2=null, setGroup=null, groundMesh=null, pathLine2=null, actor2Id=null;
   var keyLight=null, ambientLight=null, fillLight=null;
   var threeReady=false;
   var camTarget=new THREE.Vector3(0,1.02,0);
@@ -459,17 +473,18 @@
     fillLight=new THREE.DirectionalLight(0x9db8d6,0.35);
     fillLight.position.set(-5,3.5,4);scene.add(fillLight);
 
-    // ground
-    var ground=new THREE.Mesh(new THREE.CircleGeometry(16,48),
+    // ground (radius 16; the plaza set scales it to 20 on switch)
+    groundMesh=new THREE.Mesh(new THREE.CircleGeometry(16,48),
       new THREE.MeshStandardMaterial({color:0x2c3838,roughness:1,metalness:0}));
-    ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+    groundMesh.rotation.x=-Math.PI/2;groundMesh.receiveShadow=true;scene.add(groundMesh);
+    setGroup=new THREE.Group();scene.add(setGroup);
 
     // moon
     var moon=new THREE.Mesh(new THREE.SphereGeometry(0.85,24,24),
       new THREE.MeshBasicMaterial({color:0xd9e3d8,fog:false}));
     moon.position.set(-8,9.5,-13);scene.add(moon);
 
-    await loadSet();
+    await switchSet(currentSetId);
     await loadActor();
     await setActor('player');
     drawPathLine();
@@ -480,69 +495,115 @@
     updateTimeline();
   }
 
-  async function loadSet(){
+  /* ---- Sets: gate (local props, arrangement unchanged) and plaza ---- */
+  var propCache={};
+  function loadProp(url){
+    if(propCache[url])return Promise.resolve(propCache[url].clone());
+    return new Promise(function(res,rej){
+      new THREE.GLTFLoader().load(url,function(g){propCache[url]=g.scene;res(g.scene.clone());},undefined,rej);
+    });
+  }
+  function shadowify(o){o.traverse(function(n){if(n.isMesh){n.castShadow=true;n.receiveShadow=true;}});}
+  async function loadGateSet(){
+    // Gate arrangement, identical to the old loadSet: two fence gates
+    // (both rotY PI/2 — the right gate is a clone, so it keeps the left
+    // gate's rotation), two lanterns, bench, sign. Do not "fix" this:
+    // existing gate scenes were authored against it.
+    var gl=await loadProp('assets/props/fence-gate.glb');
+    gl.position.set(-3.4,0,2.4);gl.rotation.y=Math.PI/2;
+    var gr=gl.clone();gr.position.set(3.4,0,2.4);
+    var l1=await loadProp('assets/props/lantern-post.glb');
+    l1.position.set(-2.4,0,-1.6);
+    var l2=l1.clone();l2.position.set(2.4,0,-1.6);
+    var bench=await loadProp('assets/props/park-bench.glb');
+    bench.position.set(3.2,0,-2.2);bench.rotation.y=-0.5;
+    var sign=await loadProp('assets/props/signpost.glb');
+    sign.position.set(-3.2,0,-2.2);sign.rotation.y=0.5;
+    [gl,gr,l1,l2,bench,sign].forEach(function(o){shadowify(o);setGroup.add(o);});
+  }
+  async function loadPlazaSet(){
+    // Canonical set data (game layout, verbatim positions). Props load
+    // from the game repo via the same remote base the NPC manifest uses;
+    // a failed prop is logged and skipped — never replaced with a
+    // placeholder mesh.
+    var res=await fetch('assets/sets/cyclical-city-plaza.json',{cache:'no-store'});
+    if(!res.ok)throw new Error('plaza set '+res.status);
+    var doc=await res.json();
+    var base=NPC_ASSET_BASE+'assets/environment-props/';
+    for(var i=0;i<doc.props.length;i++){
+      var p=doc.props[i];
+      try{
+        var obj=await loadProp(base+(p.category==='trees'?'trees/':'props/')+p.file);
+        obj.position.set(p.pos[0],p.pos[1],p.pos[2]);
+        obj.rotation.y=p.rotY;obj.scale.setScalar(p.scale||1);
+        shadowify(obj);setGroup.add(obj);
+      }catch(e){console.warn('plaza prop failed',p.id,p.file,e);}
+    }
+  }
+  async function switchSet(id){
+    if(id!=='cyclical-city-gate'&&id!=='cyclical-city-plaza')return;
+    currentSetId=id;
+    if(!setGroup)return;
+    while(setGroup.children.length)setGroup.remove(setGroup.children[0]);
     try{
-      var loader=new THREE.GLTFLoader();
-      var gate=await new Promise(function(res,rej){loader.load('assets/props/fence-gate.glb',res,undefined,rej);});
-      var gl=gate.scene;gl.position.set(-3.4,0,2.4);gl.rotation.y=Math.PI/2;
-      var gr=gl.clone();gr.position.set(3.4,0,2.4);
-      var lamp=await new Promise(function(res,rej){loader.load('assets/props/lantern-post.glb',res,undefined,rej);});
-      var l1=lamp.scene;l1.position.set(-2.4,0,-1.6);
-      var l2=l1.clone();l2.position.set(2.4,0,-1.6);
-      var bench=await new Promise(function(res,rej){loader.load('assets/props/park-bench.glb',res,undefined,rej);});
-      bench.scene.position.set(3.2,0,-2.2);bench.scene.rotation.y=-0.5;
-      var sign=await new Promise(function(res,rej){loader.load('assets/props/signpost.glb',res,undefined,rej);});
-      sign.scene.position.set(-3.2,0,-2.2);sign.scene.rotation.y=0.5;
-      [gl,gr,l1,l2,bench.scene,sign.scene].forEach(function(o){
-        o.traverse(function(n){if(n.isMesh){n.castShadow=true;n.receiveShadow=true;}});
-        scene.add(o);
-      });
-    }catch(e){console.warn('set props failed',e);}
+      if(id==='cyclical-city-gate')await loadGateSet();else await loadPlazaSet();
+    }catch(e){console.warn('set props failed',id,e);}
+    if(groundMesh)groundMesh.scale.setScalar(id==='cyclical-city-plaza'?1.25:1);
   }
 
-  async function loadActor(){
+  function buildFigure(){
     // Procedural roster figure (game canon), NOT the GLB peg template.
     // Part groups are named exactly like the GLB rig nodes (BodyRig,
     // HeadRig, Hand_L/R, Foot_L/R) so the existing SnugPoseLibrary
     // PoseController finds them unchanged — no vendor change needed.
     // The GLB template file stays in the repo unused; nothing references
-    // it after this change.
-    actorGroup=new THREE.Group();
-    skinMat=new THREE.MeshStandardMaterial({color:SKIN,roughness:0.7});
-    bodyMat=new THREE.MeshStandardMaterial({roughness:0.85});
+    // it after this change. Returns a figure object; figure 1's parts
+    // are also mirrored onto the legacy globals by loadActor, so every
+    // existing single-actor function works untouched.
+    var fig={livingMouth:null,livingLidGroup:null,accGroup:null,blinkNext:0,blinkStart:0,mouthState:'smile'};
+    fig.group=new THREE.Group();
+    fig.skinMat=new THREE.MeshStandardMaterial({color:SKIN,roughness:0.7});
+    fig.bodyMat=new THREE.MeshStandardMaterial({roughness:0.85});
     function mesh(geo,mat){var m=new THREE.Mesh(geo,mat);m.castShadow=true;m.receiveShadow=true;return m;}
     // BodyRig: capsule body (r 0.29, cyl 0.54) centred at 0.66, with the
     // shoulder disc (r 0.27) at 0.97, i.e. +0.31 inside this group.
     // Outfit texture goes directly on the capsule material, with the
     // same wraparound UVs the game's cinematic player uses (FRONT at
     // u=0.5, BACK at the u=0/1 seam).
-    bodyNode=new THREE.Group();bodyNode.name='BodyRig';bodyNode.position.set(0,0.66,0);
-    bodyNode.add(mesh(makeOutfitGeometry(makeCapsuleGeometry(0.29,0.54,8,20)),bodyMat));
-    var shoulder=mesh(new THREE.CylinderGeometry(0.27,0.27,0.045,22),bodyMat);
-    shoulder.rotation.x=Math.PI/2;shoulder.position.set(0,0.31,0);bodyNode.add(shoulder);
-    actorGroup.add(bodyNode);
+    fig.bodyNode=new THREE.Group();fig.bodyNode.name='BodyRig';fig.bodyNode.position.set(0,0.66,0);
+    fig.bodyNode.add(mesh(makeOutfitGeometry(makeCapsuleGeometry(0.29,0.54,8,20)),fig.bodyMat));
+    var shoulder=mesh(new THREE.CylinderGeometry(0.27,0.27,0.045,22),fig.bodyMat);
+    shoulder.rotation.x=Math.PI/2;shoulder.position.set(0,0.31,0);fig.bodyNode.add(shoulder);
+    fig.group.add(fig.bodyNode);
     // HeadRig: coin head (r 0.34, depth 0.15) at 1.66, face circle 0.30
     // at z 0.083, exactly as in the game roster figure.
-    headGroup=new THREE.Group();headGroup.name='HeadRig';headGroup.position.set(0,1.66,0);
-    var coin=mesh(new THREE.CylinderGeometry(0.34,0.34,0.15,32),skinMat);
-    coin.rotation.x=Math.PI/2;headGroup.add(coin);
-    faceMesh=new THREE.Mesh(new THREE.CircleGeometry(0.30,40),
+    fig.headGroup=new THREE.Group();fig.headGroup.name='HeadRig';fig.headGroup.position.set(0,1.66,0);
+    var coin=mesh(new THREE.CylinderGeometry(0.34,0.34,0.15,32),fig.skinMat);
+    coin.rotation.x=Math.PI/2;fig.headGroup.add(coin);
+    fig.faceMesh=new THREE.Mesh(new THREE.CircleGeometry(0.30,40),
       new THREE.MeshBasicMaterial({color:SKIN,transparent:true}));
-    faceMesh.position.set(0,0,0.083);faceMesh.renderOrder=3;headGroup.add(faceMesh);
-    actorGroup.add(headGroup);
-    createLivingFace();
+    fig.faceMesh.position.set(0,0,0.083);fig.faceMesh.renderOrder=3;fig.headGroup.add(fig.faceMesh);
+    fig.group.add(fig.headGroup);
+    createLivingFace(fig);
     // Hands (sphere 0.13 at +/-0.46, 0.68) and feet (box
     // 0.25x0.14x0.42 at +/-0.19, 0.15, z 0.045), meshes at group origin
     // so pose offsets land on the group, as with the GLB rig nodes.
-    function limb(name,x,y,z,geo,mat){var g=new THREE.Group();g.name=name;g.position.set(x,y,z);g.add(mesh(geo,mat));actorGroup.add(g);return g;}
-    handLGroup=limb('Hand_L',-0.46,0.68,0,new THREE.SphereGeometry(0.13,14,10),skinMat);
-    handRGroup=limb('Hand_R',0.46,0.68,0,new THREE.SphereGeometry(0.13,14,10),skinMat);
+    function limb(name,x,y,z,geo,mat){var g=new THREE.Group();g.name=name;g.position.set(x,y,z);g.add(mesh(geo,mat));fig.group.add(g);return g;}
+    fig.handL=limb('Hand_L',-0.46,0.68,0,new THREE.SphereGeometry(0.13,14,10),fig.skinMat);
+    fig.handR=limb('Hand_R',0.46,0.68,0,new THREE.SphereGeometry(0.13,14,10),fig.skinMat);
     var shoeMat=new THREE.MeshStandardMaterial({color:0x3a3a3a,roughness:0.9});
-    footLGroup=limb('Foot_L',-0.19,0.15,0.045,new THREE.BoxGeometry(0.25,0.14,0.42),shoeMat);
-    footRGroup=limb('Foot_R',0.19,0.15,0.045,new THREE.BoxGeometry(0.25,0.14,0.42),shoeMat);
-    poseController=new SnugPoseLibrary.PoseController(actorGroup,{alive:false});
-    poseController.setPose('neutral');
-    scene.add(actorGroup);
+    fig.footL=limb('Foot_L',-0.19,0.15,0.045,new THREE.BoxGeometry(0.25,0.14,0.42),shoeMat);
+    fig.footR=limb('Foot_R',0.19,0.15,0.045,new THREE.BoxGeometry(0.25,0.14,0.42),shoeMat);
+    fig.poseController=new SnugPoseLibrary.PoseController(fig.group,{alive:false});
+    fig.poseController.setPose('neutral');
+    return fig;
+  }
+  async function loadActor(){
+    fig1=buildFigure();
+    actorGroup=fig1.group;poseController=fig1.poseController;bodyNode=fig1.bodyNode;
+    headGroup=fig1.headGroup;faceMesh=fig1.faceMesh;bodyMat=fig1.bodyMat;skinMat=fig1.skinMat;
+    handLGroup=fig1.handL;handRGroup=fig1.handR;footLGroup=fig1.footL;footRGroup=fig1.footR;
+    scene.add(fig1.group);
   }
 
   /* ================= Living face (3D, matching the game) =================
@@ -574,8 +635,10 @@
     'bobby-gill':{l:[0.29,0.43],r:[0.71,0.43],w:0.19,h:0.07,skin:'#b88361'}
   };
   var LIVING_STATES=['neutral','smile','laugh','grin','frown','surprise','smirk','ooh','tongue','wink'];
-  var livingMouth=null, livingLidGroup=null, livingMouthTex=null, livingMouthState='smile';
-  var livingPhase=Math.random()*6, livingNextBlink=0, livingBlinkStart=0;
+  var livingMouthTex=null;
+  var livingPhase=Math.random()*6;
+  // Mouth, lids, blink timers, and mouth state live per figure (fig.*),
+  // so a second actor blinks and speaks independently of the first.
   var livingReducedMotion=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function drawLivingMouthState(state){
     var canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;
@@ -636,26 +699,26 @@
     }
     return livingMouthTex;
   }
-  function createLivingFace(){
-    if(!headGroup||livingMouth)return;
+  function createLivingFace(fig){
+    if(!fig.headGroup||fig.livingMouth)return;
     var tex=livingMouthTextures();
-    livingMouth=new THREE.Mesh(
+    fig.livingMouth=new THREE.Mesh(
       new THREE.PlaneGeometry(0.26*LIVING_S,0.13*LIVING_S),
       new THREE.MeshStandardMaterial({map:tex.smile,transparent:true,depthWrite:false,alphaTest:0.02,roughness:0.92}));
-    livingMouth.position.set(0,-0.175*LIVING_S,0.083+0.016*LIVING_S);
-    livingMouth.renderOrder=5;livingMouth.frustumCulled=false;livingMouth.castShadow=false;
-    headGroup.add(livingMouth);
-    livingLidGroup=new THREE.Group();headGroup.add(livingLidGroup);
+    fig.livingMouth.position.set(0,-0.175*LIVING_S,0.083+0.016*LIVING_S);
+    fig.livingMouth.renderOrder=5;fig.livingMouth.frustumCulled=false;fig.livingMouth.castShadow=false;
+    fig.headGroup.add(fig.livingMouth);
+    fig.livingLidGroup=new THREE.Group();fig.headGroup.add(fig.livingLidGroup);
   }
-  function setLivingLids(id){
-    if(!livingLidGroup)return;
-    while(livingLidGroup.children.length){
-      var old=livingLidGroup.children.pop();
+  function setLivingLids(fig, id){
+    if(!fig.livingLidGroup)return;
+    while(fig.livingLidGroup.children.length){
+      var old=fig.livingLidGroup.children.pop();
       if(old.geometry)old.geometry.dispose();
     }
     var spec=LIVING_EYES[id];
-    livingNextBlink=performance.now()+1500+Math.random()*4000;
-    livingBlinkStart=0;
+    fig.blinkNext=performance.now()+1500+Math.random()*4000;
+    fig.blinkStart=0;
     if(!spec)return;
     var keys=['l','r'];
     for(var k=0;k<keys.length;k++){
@@ -666,40 +729,40 @@
         new THREE.MeshStandardMaterial({color:spec.skin,roughness:1}));
       lid.position.set(x,y,0.083+0.008*LIVING_S);
       lid.visible=false;lid.frustumCulled=false;lid.castShadow=false;
-      livingLidGroup.add(lid);
+      fig.livingLidGroup.add(lid);
     }
   }
-  function updateLivingFace(now){
-    if(!livingMouth||livingReducedMotion)return;
+  function updateLivingFace(fig, now){
+    if(!fig.livingMouth||livingReducedMotion)return;
     var s=1+0.03*Math.sin(now/1000*1.1+livingPhase);
-    livingMouth.scale.set(s,s,1);
-    if(!livingLidGroup||!livingLidGroup.children.length)return;
-    if(!livingBlinkStart&&now>=livingNextBlink)livingBlinkStart=now;
-    if(!livingBlinkStart)return;
-    var elapsed=now-livingBlinkStart, openness=null;
+    fig.livingMouth.scale.set(s,s,1);
+    if(!fig.livingLidGroup||!fig.livingLidGroup.children.length)return;
+    if(!fig.blinkStart&&now>=fig.blinkNext)fig.blinkStart=now;
+    if(!fig.blinkStart)return;
+    var elapsed=now-fig.blinkStart, openness=null;
     if(elapsed<60)openness=elapsed/60;
     else if(elapsed<150)openness=1;
     else if(elapsed<210)openness=1-(elapsed-150)/60;
     else{
-      openness=0;livingBlinkStart=0;
-      livingNextBlink=now+2500+Math.random()*4000;
+      openness=0;fig.blinkStart=0;
+      fig.blinkNext=now+2500+Math.random()*4000;
     }
     var show=openness>0;
-    for(var i=0;i<livingLidGroup.children.length;i++){
-      var lid=livingLidGroup.children[i];
+    for(var i=0;i<fig.livingLidGroup.children.length;i++){
+      var lid=fig.livingLidGroup.children[i];
       lid.visible=show;
       if(show)lid.scale.set(1,Math.max(openness,0.02),1);
     }
-    if(livingMouthState==='wink'&&livingLidGroup.children.length){
-      var wl=livingLidGroup.children[0]; wl.visible=true; wl.scale.set(1,1,1);
+    if(fig.mouthState==='wink'&&fig.livingLidGroup.children.length){
+      var wl=fig.livingLidGroup.children[0]; wl.visible=true; wl.scale.set(1,1,1);
     }
   }
   window.__snugStudioLivingFace={
     setMouth:function(state){
-      if(LIVING_STATES.indexOf(state)===-1||!livingMouth)return false;
-      livingMouthState=state;
-      livingMouth.material.map=livingMouthTextures()[state];
-      livingMouth.material.needsUpdate=true;
+      if(LIVING_STATES.indexOf(state)===-1||!fig1||!fig1.livingMouth)return false;
+      fig1.mouthState=state;
+      fig1.livingMouth.material.map=livingMouthTextures()[state];
+      fig1.livingMouth.material.needsUpdate=true;
       return true;
     },
     states:LIVING_STATES.slice()
@@ -713,11 +776,10 @@
   var CINE_HAT = {'mayor-mayor':'tophat.glb','gideon':'tourcap.glb','fern-bramble':'strawhat.glb','stanley-stamp':'mailcap.glb','bobby-gill':'buckethat.glb','lyla-lens':'press-fedora.glb','chip-chance':'showman-bowler.glb','barnaby-bargain':'bargain-bowler.glb','pip-parade':'confetti-crown.glb','agnes-alley':'cat-ears.glb','dottie-daly':'quest-beret.glb','peggy-plank':'hardhat.glb','mr-buck-coinsworth':'banker-bowler.glb'};
   var CINE_LEFT = {'gideon':'cane.glb','chip-chance':'microphone.glb'};
   var CINE_BACK = {'mayor-mayor':'cape.glb','gideon':'tour-backpack.glb','lyla-lens':'press-satchel.glb','chip-chance':'dice-pouch.glb','barnaby-bargain':'merchant-satchel.glb','pip-parade':'festival-banner.glb','agnes-alley':'cat-carrier.glb','dottie-daly':'quest-tube.glb','peggy-plank':'tool-roll.glb','mr-buck-coinsworth':'money-bag.glb','fern-bramble':'seed-pack.glb','stanley-stamp':'mailbag.glb','bobby-gill':'creel.glb'};
-  var cineAccGroup = null;
-  function attachCinematicAccessories(id){
-    if(cineAccGroup && cineAccGroup.parent) cineAccGroup.parent.remove(cineAccGroup);
-    cineAccGroup = null;
-    if(id === 'player' || !actorGroup) return;
+  function attachCinematicAccessories(fig, id){
+    if(fig.accGroup && fig.accGroup.parent) fig.accGroup.parent.remove(fig.accGroup);
+    fig.accGroup = null;
+    if(id === 'player' || !fig.group) return;
     var loader = new THREE.GLTFLoader();
     var remote = 'https://raw.githubusercontent.com/Kmberry1989/selsocsoc/main/assets/npc-accessories/';
     function attach(file, parent, x, y, z){
@@ -734,31 +796,29 @@
         }, undefined, function(e){ console.warn('Cinematic: accessory failed', file, e); });
       });
     }
-    attach(CINE_HELD[id], handRGroup, 0, -0.04, 0.14);
-    attach(CINE_HAT[id], headGroup, 0, 0.27, 0);
-    attach(CINE_LEFT[id], handLGroup, 0, -0.04, 0.14);
-    attach(CINE_BACK[id], actorGroup, 0, 0.55, -0.31);
+    attach(CINE_HELD[id], fig.handR, 0, -0.04, 0.14);
+    attach(CINE_HAT[id], fig.headGroup, 0, 0.27, 0);
+    attach(CINE_LEFT[id], fig.handL, 0, -0.04, 0.14);
+    attach(CINE_BACK[id], fig.group, 0, 0.55, -0.31);
   }
 
-  async function setActor(id){
-    actorId=id;
-    if(!actorGroup)return;
+  async function setActorFigure(fig, id){
     var isPlayer=id==='player';
     // Skin: coin head + hands share skinMat, so one set recolours both.
     // Player keeps the existing 0xe6b088 default; NPCs get their real
     // game roster skin from NPC_SKIN (previously every actor kept the
     // player default because setActor never touched skinMat).
-    if(skinMat)skinMat.color.set(isPlayer?SKIN:(NPC_SKIN[id]||SKIN));
+    if(fig.skinMat)fig.skinMat.color.set(isPlayer?SKIN:(NPC_SKIN[id]||SKIN));
     // face: real painted NPC face on the 0.30 circle, or skin tone for
     // the player (the studio has no selfie atlas, so none is invented)
     try{
       if(isPlayer){
-        faceMesh.material.map=null;faceMesh.material.color.set(SKIN);
+        fig.faceMesh.material.map=null;fig.faceMesh.material.color.set(SKIN);
       }else{
         var ft=await loadTexture(npcFacePath(id));
-        faceMesh.material.map=ft;faceMesh.material.color.set(0xffffff);
+        fig.faceMesh.material.map=ft;fig.faceMesh.material.color.set(0xffffff);
       }
-      faceMesh.material.needsUpdate=true;
+      fig.faceMesh.material.needsUpdate=true;
     }catch(e){console.warn('face failed',id,e);}
     // outfit: real painted outfit PNG on the capsule body material
     // (shoulders share it, as in the game's cinematic player)
@@ -766,9 +826,16 @@
       var opath=isPlayer?PLAYER_OUTFIT:npcOutfitPath(id);
       var ot=await loadTexture(opath);
       ot.wrapS=THREE.RepeatWrapping;
-      bodyMat.map=ot;bodyMat.color.set(0xffffff);bodyMat.needsUpdate=true;
-    }catch(e){console.warn('outfit failed',id,e);bodyMat.map=null;bodyMat.color.set(0x4a6b8a);bodyMat.needsUpdate=true;}
-    var label=isPlayer?'Player Avatar':(NPCS.find(function(n){return n.id===id;})||{}).name||id;
+      fig.bodyMat.map=ot;fig.bodyMat.color.set(0xffffff);fig.bodyMat.needsUpdate=true;
+    }catch(e){console.warn('outfit failed',id,e);fig.bodyMat.map=null;fig.bodyMat.color.set(0x4a6b8a);fig.bodyMat.needsUpdate=true;}
+    setLivingLids(fig, id);
+    attachCinematicAccessories(fig, id);
+    return isPlayer?'Player Avatar':(NPCS.find(function(n){return n.id===id;})||{}).name||id;
+  }
+  async function setActor(id){
+    actorId=id;
+    if(!fig1)return;
+    var label=await setActorFigure(fig1, id);
     actorLabel=label;
     var sel2=document.getElementById('actorSelect');if(sel2)sel2.value=id;
     document.getElementById('selectedName').textContent=label;
@@ -776,8 +843,37 @@
     if(trackLabel)trackLabel.textContent=label;
     var sideBtn=document.querySelector('.scene-item[data-select="mayor"] .label');
     if(sideBtn)sideBtn.textContent=label;
-    setLivingLids(id);
-    attachCinematicAccessories(id);
+  }
+  async function setActor2(id){
+    actor2Id=id;
+    if(!fig2)return;
+    var label=await setActorFigure(fig2, id);
+    actor2Label=label;
+    var trackLabel=document.getElementById('trackActor2Name');
+    if(trackLabel)trackLabel.textContent=label;
+    var sideBtn=document.querySelector('#actor2SideItem .label');
+    if(sideBtn)sideBtn.textContent=label;
+  }
+  function clearActor2(){
+    if(fig2&&fig2.group&&fig2.group.parent)fig2.group.parent.remove(fig2.group);
+    fig2=null;actor2Id=null;beats2=[];
+    var tr=document.getElementById('trackActor2');if(tr)tr.style.display='none';
+    var si=document.getElementById('actor2SideItem');if(si)si.style.display='none';
+    var sel=document.getElementById('actor2Select');if(sel)sel.value='';
+    if(selectedTrack==='actor2')selectedTrack='actor';
+  }
+  function showActor2UI(id){
+    var tr=document.getElementById('trackActor2');if(tr)tr.style.display='';
+    var si=document.getElementById('actor2SideItem');if(si)si.style.display='';
+    var sel=document.getElementById('actor2Select');if(sel)sel.value=id;
+  }
+  async function addActor2(id){
+    if(fig2)clearActor2();
+    fig2=buildFigure();scene.add(fig2.group);
+    if(!beats2.length)beats2=defaultBeats();
+    showActor2UI(id);
+    await setActor2(id);
+    syncDuration();renderBeatUI();updateActorMotionFigure(fig2, beats2, true);
   }
 
   /* ---- motion path (walk beat) in meters ---- */
@@ -861,26 +957,44 @@
   }
 
   /* ================= Timeline ================= */
+  function activeBeats(){return selectedTrack==='actor2'?beats2:beats;}
   function currentBeat(){
-    for(var i=0;i<beats.length;i++)if(time>=beats[i].start&&time<beats[i].end)return beats[i];
-    return beats[beats.length-1];
+    var list=activeBeats();
+    for(var i=0;i<list.length;i++)if(time>=list[i].start&&time<list[i].end)return list[i];
+    return list[list.length-1];
+  }
+  function beatAt(list, t){
+    for(var i=0;i<list.length;i++)if(t>=list[i].start&&t<list[i].end)return list[i];
+    return list[list.length-1];
+  }
+  function pathPoint2(t){
+    // Mirrored walk for the second actor: starts stage-right and ends
+    // at (0.9, 0, 0.35), 0.9 m from the first actor's centre home —
+    // wide enough that the two 0.58 m figures never overlap.
+    var a=new THREE.Vector3(2.6,0,0.35), c=new THREE.Vector3(1.3,0.32,-0.35), b=new THREE.Vector3(0.9,0,0.35);
+    var p1=a.clone().lerp(c,t), p2=c.clone().lerp(b,t);
+    return p1.lerp(p2,t);
+  }
+  function updateActorMotionFigure(fig, list, mirror){
+    if(!fig||!fig.poseController||!list.length)return;
+    var b=beatAt(list, time), span=Math.max(0.001,b.end-b.start);
+    var local=Math.max(0,Math.min(1,(time-b.start)/span));
+    var pp=mirror?pathPoint2:pathPoint;
+    var p=pp(b.move?local:1);
+    var hopY=b.hop?Math.sin(local*Math.PI)*0.35:0;
+    fig.group.position.set(p.x,p.y+hopY,p.z);
+    if(b.move&&local>0.001&&local<0.999){
+      var ahead=pp(Math.min(1,local+0.04));
+      fig.group.rotation.y=Math.atan2(ahead.x-p.x,ahead.z-p.z);
+    }else{
+      fig.group.rotation.y+=(0-fig.group.rotation.y)*0.2;
+    }
+    if(fig.poseController.pose!==b.pose)fig.poseController.setPose(b.pose);
   }
   function updateActorMotion(){
-    if(!actorGroup||!poseController)return;
-    var b=currentBeat(), span=Math.max(0.001,b.end-b.start);
-    var local=Math.max(0,Math.min(1,(time-b.start)/span));
-    var p=pathPoint(b.move?local:1);
-    var hopY=b.hop?Math.sin(local*Math.PI)*0.35:0;
-    actorGroup.position.set(p.x,p.y+hopY,p.z);
-    if(b.move&&local>0.001&&local<0.999){
-      var ahead=pathPoint(Math.min(1,local+0.04));
-      actorGroup.rotation.y=Math.atan2(ahead.x-p.x,ahead.z-p.z);
-    }else{
-      actorGroup.rotation.y+= (0-actorGroup.rotation.y)*0.2;
-    }
-    if(poseController.pose!==b.pose)poseController.setPose(b.pose);
+    updateActorMotionFigure(fig1, beats, false);
   }
-  function syncDuration(){var m=0;beats.forEach(function(b){m=Math.max(m,b.end);});DURATION=Math.max(0.2,m);}
+  function syncDuration(){var m=0;beats.forEach(function(b){m=Math.max(m,b.end);});beats2.forEach(function(b){m=Math.max(m,b.end);});DURATION=Math.max(0.2,m);}
   var lastBeatIdx=-1;
   function syncBeatFields(){
     var idx=beats.indexOf(currentBeat());if(idx===lastBeatIdx)return;lastBeatIdx=idx;
@@ -902,14 +1016,26 @@
         c.style.left=(b.start/DURATION*100)+'%';
         c.style.width=Math.max(2,(b.end-b.start)/DURATION*100)+'%';
         c.dataset.time=(b.start+0.1).toFixed(2);c.textContent=b.name;
-        c.addEventListener('click',function(e){e.stopPropagation();setPlaying(false);seek(Number(c.dataset.time));});
+        c.addEventListener('click',function(e){e.stopPropagation();selectedTrack='actor';setPlaying(false);seek(Number(c.dataset.time));renderBeatUI();});
         lane.appendChild(c);
+      });
+    }
+    var lane2=document.querySelector('[data-track="actor2"]');
+    if(lane2){
+      lane2.querySelectorAll('.clip').forEach(function(c){c.remove();});
+      beats2.forEach(function(b){
+        var c=document.createElement('button');c.className='clip';
+        c.style.left=(b.start/DURATION*100)+'%';
+        c.style.width=Math.max(2,(b.end-b.start)/DURATION*100)+'%';
+        c.dataset.time=(b.start+0.1).toFixed(2);c.textContent=b.name;
+        c.addEventListener('click',function(e){e.stopPropagation();selectedTrack='actor2';setPlaying(false);seek(Number(c.dataset.time));renderBeatUI();});
+        lane2.appendChild(c);
       });
     }
     var list=document.getElementById('beatList');
     if(list){
       var title=list.querySelector('.subgroup-title');list.innerHTML='';if(title)list.appendChild(title);
-      beats.forEach(function(b,i){
+      activeBeats().forEach(function(b,i){
         var btn=document.createElement('button');btn.className='scene-item';btn.dataset.time=b.start;
         btn.innerHTML='<span class="type">'+String(i+1).padStart(2,'0')+'</span><span class="label"></span>';
         btn.querySelector('.label').textContent=b.name;
@@ -927,7 +1053,7 @@
     document.getElementById('beatLabel').textContent=b.name;
     poseSelect.value=b.pose;
     syncBeatFields();
-    var clips=document.querySelectorAll('.clip');
+    var clips=document.querySelectorAll('[data-track="'+(selectedTrack==='actor2'?'actor2':'actor')+'"] .clip');
     clips.forEach(function(c){c.classList.toggle('selected',Math.abs(Number(c.dataset.time)-Math.max(b.start+.1,.1))<.25);});
     applyLighting();
   }
@@ -951,8 +1077,11 @@
       updateTimeline();
     }
     if(poseController)poseController.update(ts||performance.now());
+    if(fig2)fig2.poseController.update(ts||performance.now());
     updateActorMotion();
-    updateLivingFace(ts||performance.now());
+    if(fig2)updateActorMotionFigure(fig2, beats2, true);
+    if(fig1)updateLivingFace(fig1, ts||performance.now());
+    if(fig2)updateLivingFace(fig2, ts||performance.now());
     // Render as soon as the scene exists, not only after every GLB/texture
     // has loaded — otherwise the stage sits dark while assets stream in,
     // which is what the first audit screenshot caught.
@@ -971,24 +1100,28 @@
   /* ================= Beat editing / new scene ================= */
   function setBeatDuration(v){
     var b=currentBeat();if(!b)return;
+    var list=activeBeats();
     var dur=Math.max(0.2,Math.min(10,Number(v)||1)),delta=dur-(b.end-b.start);
-    if(!delta)return;var idx=beats.indexOf(b);b.end+=delta;
-    for(var i=idx+1;i<beats.length;i++){beats[i].start+=delta;beats[i].end+=delta;}
+    if(!delta)return;var idx=list.indexOf(b);b.end+=delta;
+    for(var i=idx+1;i<list.length;i++){list[i].start+=delta;list[i].end+=delta;}
     syncDuration();renderBeatUI();updateActorMotion();
   }
   function addBeat(){
-    var s=DURATION;beats.push({start:s,end:s+1,name:'New beat',pose:'neutral',dialogue:''});
+    var list=activeBeats();
+    var s=DURATION;list.push({start:s,end:s+1,name:'New beat',pose:'neutral',dialogue:''});
     syncDuration();renderBeatUI();seek(s+0.05);showToast('Beat added');
   }
   function removeBeat(){
-    if(beats.length<=1){showToast('A scene needs at least one beat');return;}
-    var b=currentBeat(),idx=beats.indexOf(b),dur=b.end-b.start;
-    beats.splice(idx,1);
-    for(var i=idx;i<beats.length;i++){beats[i].start-=dur;beats[i].end-=dur;}
-    syncDuration();renderBeatUI();seek(idx>0?beats[idx-1].start+0.05:0.05);showToast('Beat removed');
+    var list=activeBeats();
+    if(list.length<=1){showToast('A scene needs at least one beat');return;}
+    var b=currentBeat(),idx=list.indexOf(b),dur=b.end-b.start;
+    list.splice(idx,1);
+    for(var i=idx;i<list.length;i++){list[i].start-=dur;list[i].end-=dur;}
+    syncDuration();renderBeatUI();seek(idx>0?list[idx-1].start+0.05:0.05);showToast('Beat removed');
   }
   function newScene(){
-    setPlaying(false);beats=defaultBeats();customKeys=[];history=[];
+    setPlaying(false);beats=defaultBeats();beats2=[];customKeys=[];history=[];
+    clearActor2();
     document.querySelectorAll('.key.custom').forEach(function(k){k.remove();});
     var sn=document.getElementById('sceneName');if(sn)sn.value='Untitled scene';
     syncSceneName();syncDuration();renderBeatUI();seek(0);showToast('New scene ready');
@@ -1000,18 +1133,25 @@
     history.push({track:track,time:t});customKeys.push({track:track,time:t});
     var lane=document.querySelector('[data-track="'+track+'"]');
     if(lane){var k=document.createElement('span');k.className='key custom';k.style.left=(t/DURATION*100)+'%';k.dataset.time=t;lane.appendChild(k);}
-    showToast((track==='actor'?'Actor pose':'Camera')+' key added at '+t.toFixed(1)+'s');
+    showToast((track==='camera'?'Camera':'Actor pose')+' key added at '+t.toFixed(1)+'s');
   }
   function sceneTitle(){var el=document.getElementById('sceneName');var t=el?el.value.trim():'';return t||'Mayor Mayor intro';}
   function sceneId(){return sceneTitle().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'untitled-scene';}
   function syncSceneName(){var h=document.querySelector('.sequence-name');if(h)h.textContent=sceneTitle();var p=document.getElementById('exportPath');if(p)p.textContent='assets/cinematics/'+sceneId()+'.sequence.json';}
+  function exportBeats(list){return list.map(function(b){var o={time:b.start,duration:Number((b.end-b.start).toFixed(2)),action:b.pose,easing:document.getElementById('easeSelect').value};if(b.move)o.move=true;if(b.hop)o.hop=true;return o;});}
+  function exportActors(){
+    var out=[{id:actorId,spawn:'stage-left',beats:exportBeats(beats)}];
+    if(actor2Id)out.push({id:actor2Id,spawn:'stage-right',beats:exportBeats(beats2)});
+    return out;
+  }
   function exportData(){
     var dlg=beats.filter(function(b){return b.dialogue&&b.dialogue.trim();}).map(function(b){return{time:b.start,end:b.end,speaker:actorLabel,text:b.dialogue.trim()};});
+    dlg=dlg.concat(beats2.filter(function(b){return b.dialogue&&b.dialogue.trim();}).map(function(b){return{time:b.start,end:b.end,speaker:actor2Label,text:b.dialogue.trim()};}));
     return {
       schema:'selsocsoc.cinematic.v1', id:sceneId(), title:sceneTitle(), fps:FPS, duration:DURATION,
       playback:{nonInteractive:document.getElementById('lockInput').checked,loop:false,returnControl:true},
-      set:{id:'cyclical-city-gate'},
-      actors:[{id:actorId,spawn:'stage-left',beats:beats.map(function(b){var o={time:b.start,duration:Number((b.end-b.start).toFixed(2)),action:b.pose,easing:document.getElementById('easeSelect').value};if(b.move)o.move=true;if(b.hop)o.hop=true;return o;})}],
+      set:{id:currentSetId},
+      actors:exportActors(),
       camera:{name:document.getElementById('shotName').value||'Wide arrival',transform:{position:[+posX.value||0,+posY.value||0,+posZ.value||0],rotationDegrees:[+rotX.value||0,+rotY.value||0,+rotZ.value||0]},keys:cameraKeys.concat(customKeys.filter(function(k){return k.track==='camera';}).map(function(k){return{time:k.time,lens:+lensInput.value||35,frame:(document.querySelector('#framingSeg .active')||{}).dataset?document.querySelector('#framingSeg .active').dataset.frame:'wide',position:[+posX.value||0,+posY.value||0,+posZ.value||0],rotationDegrees:[+rotX.value||0,+rotY.value||0,+rotZ.value||0]};}))},
       lighting:{rig:'warm-key',keys:lightKeys},
       audio:{syncMarkers:[]}, dialogue:dlg,
@@ -1028,6 +1168,17 @@
   if(actorSelect){
     actorSelect.addEventListener('change',function(){setActor(actorSelect.value);});
   }
+  var actor2SelectEl=document.getElementById('actor2Select');
+  if(actor2SelectEl){
+    actor2SelectEl.addEventListener('change',function(){
+      var v=actor2SelectEl.value;
+      if(!v){clearActor2();syncDuration();renderBeatUI();return;}
+      addActor2(v);
+    });
+  }
+  document.querySelectorAll('[data-set]').forEach(function(btn){
+    btn.addEventListener('click',function(){switchSet(btn.dataset.set);});
+  });
 
   document.getElementById('playBtn').addEventListener('click',function(){setPlaying(!playing);});
   document.getElementById('rewindBtn').addEventListener('click',function(){setPlaying(false);seek(0);});
@@ -1066,6 +1217,7 @@
       if(e.target.closest('.clip,.key'))return;
       selectedTrack=lane.dataset.track;
       var r=lane.getBoundingClientRect();seek((e.clientX-r.left)/r.width*DURATION);
+      renderBeatUI();
     });
   });
   document.querySelectorAll('.scene-item').forEach(function(el){
@@ -1073,8 +1225,13 @@
       document.querySelectorAll('.scene-item').forEach(function(x){x.classList.remove('active');});
       el.classList.add('active');
       if(el.dataset.select){
-        if(el.dataset.select!=='mayor')document.getElementById('selectedName').textContent=el.querySelector('.label').textContent;
-        selectedTrack=el.dataset.select==='camera'?'camera':el.dataset.select==='light'?'light':'actor';
+        if(el.dataset.select==='actor2'){selectedTrack='actor2';renderBeatUI();}
+        else if(el.dataset.select==='set'){/* set switching handled by the data-set handler; leave name/track alone */}
+        else{
+          if(el.dataset.select!=='mayor')document.getElementById('selectedName').textContent=el.querySelector('.label').textContent;
+          selectedTrack=el.dataset.select==='camera'?'camera':el.dataset.select==='light'?'light':'actor';
+          renderBeatUI();
+        }
       }
     });
   });
@@ -1103,7 +1260,7 @@
     // so poses with no beat (including the new Dance/Sit) could never be
     // used in a scene. Now picking a pose applies it to the current beat,
     // which is what the export writes out.
-    var b=currentBeat();if(b){b.pose=e.target.value;if(poseController)poseController.setPose(e.target.value);updateTimeline();updateActorMotion();}
+    var b=currentBeat();if(b){b.pose=e.target.value;var pc=selectedTrack==='actor2'?(fig2&&fig2.poseController):poseController;if(pc)pc.setPose(e.target.value);updateTimeline();updateActorMotion();if(fig2)updateActorMotionFigure(fig2, beats2, true);}
   });
   document.getElementById('newSceneBtn').addEventListener('click',newScene);
   document.getElementById('addBeatBtn').addEventListener('click',addBeat);
@@ -1136,19 +1293,35 @@
         if(!data.schema||data.schema.indexOf('selsocsoc.cinematic')!==0)throw new Error();
         var impBeats=(data.actors&&data.actors[0]&&data.actors[0].beats)||[];
         if(impBeats.length){
-          beats=impBeats.map(function(b){
+          var mapBeat=function(b){
             var st=Number(b.time)||0,du=Number(b.duration)||1,act=b.action||b.pose||'neutral';
             return{start:st,end:st+du,name:(act==='neutral'&&b.move)?'Walk in':act.charAt(0).toUpperCase()+act.slice(1),pose:act,move:!!b.move,hop:!!b.hop,dialogue:''};
-          });
+          };
+          beats=impBeats.map(mapBeat);
+          var labelFor=function(id){return id==='player'?'Player Avatar':(NPC_BY_ID[id]||{}).name||id;};
+          var has2=data.actors[1]&&data.actors[1].beats&&data.actors[1].beats.length&&data.actors[1].id&&(data.actors[1].id==='player'||NPC_BY_ID[data.actors[1].id]);
+          if(has2){
+            clearActor2();
+            beats2=data.actors[1].beats.map(mapBeat);
+            fig2=buildFigure();scene.add(fig2.group);
+            showActor2UI(data.actors[1].id);
+            setActor2(data.actors[1].id);
+          }else{clearActor2();}
           (data.dialogue||[]).forEach(function(d){
-            var t=(d.time!==undefined?d.time:d.start);if(t===undefined)return;var target=null;
-            for(var i=0;i<beats.length;i++){if(t>=beats[i].start&&t<beats[i].end){target=beats[i];break;}}
-            if(!target)target=beats[beats.length-1];
+            var t=(d.time!==undefined?d.time:d.start);if(t===undefined)return;
+            var list=(has2&&d.speaker&&d.speaker===labelFor(data.actors[1].id))?beats2:beats;
+            var target=null;
+            for(var i=0;i<list.length;i++){if(t>=list[i].start&&t<list[i].end){target=list[i];break;}}
+            if(!target)target=list[list.length-1];
             if(target&&d.text)target.dialogue=d.text;
           });
           syncDuration();
           if(typeof data.duration==='number'&&data.duration>DURATION)DURATION=data.duration;
           if(data.actors[0].id&&(data.actors[0].id==='player'||NPC_BY_ID[data.actors[0].id]))setActor(data.actors[0].id);
+          if(data.set&&data.set.id&&(data.set.id==='cyclical-city-gate'||data.set.id==='cyclical-city-plaza')){
+            document.querySelectorAll('[data-set]').forEach(function(x){x.classList.toggle('active',x.dataset.set===data.set.id);});
+            switchSet(data.set.id);
+          }
           renderBeatUI();
         }else if(typeof data.duration==='number')DURATION=Math.max(1,data.duration);
         if(data.title||data.id){var sn=document.getElementById('sceneName');if(sn)sn.value=data.title||data.id.replace(/[-_]+/g,' ');syncSceneName();}
@@ -1194,6 +1367,8 @@
   window.__cineTest={
     setPlaying:setPlaying,seek:seek,getTime:function(){return time;},
     setActor:setActor,getActor:function(){return actorId;},
+    setActor2:setActor2,addActor2:addActor2,clearActor2:clearActor2,getActor2:function(){return actor2Id;},
+    getSet:function(){return currentSetId;},switchSet:switchSet,
     exportData:exportData,applyCamera:applyCamera,
     setPose:function(p){if(poseController)poseController.setPose(p);},
     getPose:function(){return poseController?poseController.pose:null;},
